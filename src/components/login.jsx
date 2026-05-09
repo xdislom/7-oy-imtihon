@@ -7,7 +7,7 @@ export default function Login() {
 
     return (
         <div className="flex">
-            <img src={study} alt="study" className="w-[750px] h-[825px] bg-blue-900" />
+            <img src={study} alt="study" className="w-[750px] h-screen bg-blue-900" />
             <div>
                 <h1 className="text-[18px] font-[400] w-[400px] text-center m-auto ml-[200px] mt-[180px]">MUHAMMAD AL-XORAZMIY NOMIDAGI TOSHKENT AXBOROT TEXNOLOGIYALARI UNIVERSITETI</h1>
                 <img src={tatu} alt="tatu" className="w-[100px] ml-[350px] mt-[10px]" />
