@@ -72,19 +72,19 @@ export default function Main() {
                         <h6 className="text-center pt-[10px]">0</h6>
                     </div>
                     <div className="w-[350px] h-[200px] rounded-[20px] bg-white mt-[40px] pt-[50px]">
-                        <i className="fa-solid fa-book-open pl-[165px] text-purple-500"></i>
+                        <i className="fa-solid fa-user-graduate pl-[165px] text-purple-500"></i>
                         <h5 className="text-center pt-[10px]">Talabalar</h5>
                         <h6 className="text-center pt-[10px]">1</h6>
                     </div>
                 </div>
                 <div className="flex gap-[10px]">
                     <div className="w-[350px] h-[200px] rounded-[20px] bg-white mt-[40px] pt-[50px]">
-                        <i className="fa-solid fa-book-open pl-[165px] text-purple-500"></i>
+                        <i class="fa-solid fa-gift pl-[165px] text-purple-500"></i>
                         <h5 className="text-center pt-[10px]">Sovg'alar</h5>
                         <h6 className="text-center pt-[10px]">3</h6>
                     </div>
                     <div className="w-[350px] h-[200px] rounded-[20px] bg-white mt-[40px] pt-[50px]">
-                        <i className="fa-solid fa-book-open pl-[165px] text-purple-500"></i>
+                        <i class="fa-solid fa-user-check pl-[165px] text-purple-500"></i>
                         <h5 className="text-center pt-[10px]">O'qituvchilar</h5>
                         <h6 className="text-center pt-[10px]">0</h6>
                     </div>
