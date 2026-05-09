@@ -9,6 +9,7 @@ export default function Main() {
 
     return (
         <div className="flex">
+            
             <div className="w-[300px] h-[825px] p-[20px]">
                 <ul>
                     <div className="flex">
@@ -51,7 +52,7 @@ export default function Main() {
                         fontSize: 13,
                         display: "flex",
                         gap: 1
-                    }}><i class="fa-solid fa-bolt"></i> Obunani yangilash</Button>
+                    }}><i className="fa-solid fa-bolt"></i> Obunani yangilash</Button>
                 </div>
             </div>
 
