@@ -4,30 +4,62 @@ import study from "../assets/study.svg"
 import tatu from "../assets/tatu.png"
 
 export default function Login() {
-
     return (
-        <div className="flex">
-            <img src={study} alt="study" className="w-[750px] h-screen bg-blue-900" />
-            <div>
-                <h1 className="text-[18px] font-[400] w-[400px] text-center m-auto ml-[200px] mt-[180px]">MUHAMMAD AL-XORAZMIY NOMIDAGI TOSHKENT AXBOROT TEXNOLOGIYALARI UNIVERSITETI</h1>
-                <img src={tatu} alt="tatu" className="w-[100px] ml-[350px] mt-[10px]" />
-                <h2 className="text-[24px] font-[500] ml-[210px] mt-[30px]">LEARNING MANAGEMENT SYSTEM</h2>
-                <div className="ml-[180px] mt-[15px]">
-                    <h4>Login</h4>
-                    <label>
-                        <input type="phone" placeholder="Loginni kiriting" className="w-[450px] h-[50px] p-[15px] border border-1 rounded-[7px]" />
-                    </label>
+        <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden">
 
-                    <h4 className="mt-[20px]">Parol</h4>
-                    <label>
-                        <input type="password" placeholder="Parolni kiriting" className="w-[450px] h-[50px] p-[15px] border border-1 rounded-[7px] mb-[20px]" />
-                        <Link to="/main">
-                            <Button variant="contained" className="w-[450px] h-[50px]">Kirish</Button>
-                        </Link>
-                    </label>
+            <div className="hidden md:flex md:w-1/2 lg:w-[45%] bg-[#1a3a8a] items-center justify-center p-10">
+                <img src={study} alt="study" className="max-w-full h-auto object-contain" />
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 bg-white">
+
+                <div className="max-w-[450px] w-full text-center space-y-6">
+                    <h1 className="text-[16px] md:text-[18px] font-semibold text-gray-800 uppercase leading-tight">
+                        MUHAMMAD AL-XORAZMIY NOMIDAGI TOSHKENT AXBOROT TEXNOLOGIYALARI UNIVERSITETI
+                    </h1>
+
+                    <div className="flex justify-center">
+                        <img src={tatu} alt="tatu" className="w-[80px] md:w-[100px] h-auto" />
+                    </div>
+
+                    <h2 className="text-[20px] md:text-[24px] font-bold text-gray-900 tracking-wide">
+                        LEARNING MANAGEMENT SYSTEM
+                    </h2>
                 </div>
+
+                <div className="max-w-[450px] w-full mt-8 space-y-5">
+                    <div className="flex flex-col gap-2">
+                        <label className="font-medium text-gray-700">Login</label>
+                        <input
+                            type="text"
+                            placeholder="Loginni kiriting"
+                            className="w-full h-[50px] px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <label className="font-medium text-gray-700">Parol</label>
+                        <input
+                            type="password"
+                            placeholder="Parolni kiriting"
+                            className="w-full h-[50px] px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        />
+                    </div>
+
+                    <div className="pt-2">
+                        <Link to="/main">
+                            <Button
+                                variant="contained"
+                                className="w-full h-[50px] bg-[#1976d2] hover:bg-[#1565c0] normal-case text-base font-semibold shadow-none"
+                                style={{ width: '100%', height: '50px' }} // MUI override uchun
+                            >
+                                Kirish
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+
             </div>
         </div>
-
     )
 }
