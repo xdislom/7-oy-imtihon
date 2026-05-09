@@ -101,7 +101,9 @@ export default function Main() {
                             </p>
                         </AccordionSummary>
                         <AccordionDetails sx={{ borderTop: '1px solid #e0e0e0' }}>
-                            <p>Bu yerda dars yoq</p>
+                            <p>N105 ga bugun dars 16:00</p>
+                            <p className="pt-[7px]">N26 ga ertaga dars 19:00</p>
+                            <p className="pt-[7px]">N106 Dushanba kuni 16:00</p>
                         </AccordionDetails>
                     </Accordion>
                 </div>
