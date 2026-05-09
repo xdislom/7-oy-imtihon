@@ -7,14 +7,14 @@ export default function Login() {
     return (
         <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden">
 
-            <div className="hidden md:flex md:w-1/2 lg:w-[45%] bg-[#1a3a8a] items-center justify-center p-10">
+            <div className="hidden md:flex md:w-[700px] bg-blue-900 items-center justify-center p-[30px]">
                 <img src={study} alt="study" className="max-w-full h-auto object-contain" />
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 bg-white">
+            <div className="flex-1 flex flex-col items-center justify-center p-[20px] md:p-12 bg-white">
 
                 <div className="max-w-[450px] w-full text-center space-y-6">
-                    <h1 className="text-[16px] md:text-[18px] font-semibold text-gray-800 uppercase leading-tight">
+                    <h1 className="text-[16px] md:text-[18px] font-[500] w-[400px] m-auto mb-[10px]">
                         MUHAMMAD AL-XORAZMIY NOMIDAGI TOSHKENT AXBOROT TEXNOLOGIYALARI UNIVERSITETI
                     </h1>
 
@@ -22,27 +22,27 @@ export default function Login() {
                         <img src={tatu} alt="tatu" className="w-[80px] md:w-[100px] h-auto" />
                     </div>
 
-                    <h2 className="text-[20px] md:text-[24px] font-bold text-gray-900 tracking-wide">
+                    <h2 className="text-[20px] md:text-[24px] font-[700] text-gray-900 tracking-wide">
                         LEARNING MANAGEMENT SYSTEM
                     </h2>
                 </div>
 
                 <div className="max-w-[450px] w-full mt-8 space-y-5">
-                    <div className="flex flex-col gap-2">
-                        <label className="font-medium text-gray-700">Login</label>
+                    <div className="flex flex-col gap-[5px]">
+                        <label className="font-[500] text-gray-700">Login</label>
                         <input
                             type="text"
                             placeholder="Loginni kiriting"
-                            className="w-full h-[50px] px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                            className="w-full h-[50px] p-[15px] border border-gray-300 rounded-[10px] outline-none"
                         />
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <label className="font-medium text-gray-700">Parol</label>
+                    <div className="flex flex-col gap-[5px]">
+                        <label className="font-[500] text-gray-700">Parol</label>
                         <input
                             type="password"
                             placeholder="Parolni kiriting"
-                            className="w-full h-[50px] px-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                            className="w-full h-[50px] px-[15px] border border-gray-300 rounded-[10px] outline-none "
                         />
                     </div>
 
@@ -50,8 +50,8 @@ export default function Login() {
                         <Link to="/main">
                             <Button
                                 variant="contained"
-                                className="w-full h-[50px] bg-[#1976d2] hover:bg-[#1565c0] normal-case text-base font-semibold shadow-none"
-                                style={{ width: '100%', height: '50px' }} // MUI override uchun
+                                className="w-full h-[50px] hover:bg-[#1565c0] text-base font-[500] shadow-none"
+                                style={{ width: '100%', height: '50px' }}
                             >
                                 Kirish
                             </Button>
