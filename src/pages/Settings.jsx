@@ -44,9 +44,10 @@ const xonalarFilialTabs = ["AICoder markazi", "Fizika va Matematika", "4-maktab"
 
 function XonalarTab() {
     const [activeFilial, setActiveFilial] = useState("AICoder markazi")
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
     return (
-        <div>
+        <div className="relative">
             {/* Xonalar header */}
             <div className="flex justify-between items-center mb-[20px]">
                 <div className="flex items-center gap-3">
@@ -55,6 +56,7 @@ function XonalarTab() {
                 </div>
                 <Button
                     variant="contained"
+                    onClick={() => setIsDrawerOpen(true)}
                     sx={{ bgcolor: '#7c3aed', borderRadius: '10px', textTransform: 'none', fontWeight: 600, display: 'flex', gap: 1 }}
                 >
                     <i className="fa-solid fa-plus"></i>
@@ -100,20 +102,95 @@ function XonalarTab() {
                     </div>
                 ))}
             </div>
+
+            {/* Right Side Drawer (Add Room Panel) */}
+            {isDrawerOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/20 z-50 flex justify-end transition-opacity duration-300"
+                    onClick={() => setIsDrawerOpen(false)}
+                >
+                    <div 
+                        className="w-[400px] h-full bg-white shadow-2xl p-[24px] flex flex-col justify-between animate-slide-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div>
+                            <div className="flex justify-between items-center mb-[30px]">
+                                <h3 className="text-[20px] font-[600]">Xonani qo'shish</h3>
+                                <i 
+                                    className="fa-solid fa-xmark text-gray-400 cursor-pointer hover:text-red-500 text-[20px]"
+                                    onClick={() => setIsDrawerOpen(false)}
+                                ></i>
+                            </div>
+
+                            <div className="space-y-[20px]">
+                                <div>
+                                    <label className="block text-[14px] font-[500] text-gray-700 mb-[8px]">
+                                        Nomi <span className="text-red-500">*</span>
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Xona nomi"
+                                        className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500 transition-colors"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[14px] font-[500] text-gray-700 mb-[8px]">
+                                        Sig'imi <span className="text-red-500">*</span>
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Masalan: 20"
+                                        className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500 transition-colors"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-[12px] border-t pt-[20px]">
+                            <button 
+                                className="flex-1 py-[10px] text-gray-600 font-[600] border border-gray-200 rounded-[10px] hover:bg-gray-50 transition-colors"
+                                onClick={() => setIsDrawerOpen(false)}
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                className="flex-1 py-[10px] bg-purple-600 text-white font-[600] rounded-[10px] hover:bg-purple-700 transition-colors"
+                                onClick={() => setIsDrawerOpen(false)}
+                            >
+                                Saqlash
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Custom Animation Style */}
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes slide-in {
+                    from { transform: translateX(100%); }
+                    to { transform: translateX(0); }
+                }
+                .animate-slide-in {
+                    animation: slide-in 0.3s ease-out;
+                }
+            `}} />
         </div>
     )
 }
 
 function KurslarTab() {
     const [activeFilial, setActiveFilial] = useState("Filial 1")
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
     return (
-        <div>
+        <div className="relative">
             {/* Kurslar header */}
             <div className="flex justify-between items-center mb-[20px]">
                 <h3 className="text-[22px] font-[600]">Kurslar</h3>
                 <Button
                     variant="contained"
+                    onClick={() => setIsDrawerOpen(true)}
                     sx={{ bgcolor: '#7c3aed', borderRadius: '10px', textTransform: 'none', fontWeight: 600, display: 'flex', gap: 1 }}
                 >
                     <i className="fa-solid fa-plus"></i>
@@ -166,6 +243,137 @@ function KurslarTab() {
                     </div>
                 ))}
             </div>
+
+            {/* Right Side Drawer (Add Course Panel) */}
+            {isDrawerOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/20 z-50 flex justify-end"
+                    onClick={() => setIsDrawerOpen(false)}
+                >
+                    <div 
+                        className="w-[450px] h-full bg-white shadow-2xl flex flex-col animate-slide-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="p-[24px] border-b relative">
+                            <h3 className="text-[20px] font-[600] mb-1">Kurs qoshish</h3>
+                            <p className="text-[13px] text-gray-500">Bu yerda siz yangi Kurs qo'shishingiz mumkin.</p>
+                            <i 
+                                className="fa-solid fa-chevron-up absolute top-[24px] right-[24px] text-gray-400 cursor-pointer"
+                                onClick={() => setIsDrawerOpen(false)}
+                            ></i>
+                        </div>
+
+                        {/* Body - Scrollable */}
+                        <div className="flex-1 overflow-y-auto p-[24px] space-y-[24px]">
+                            {/* Nomi */}
+                            <div>
+                                <label className="block text-[14px] font-[600] text-gray-700 mb-[8px]">Nomi</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="HR Manager..."
+                                    className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500"
+                                />
+                            </div>
+
+                            {/* Filiallar */}
+                            <div>
+                                <div className="flex justify-between items-center mb-[12px]">
+                                    <label className="text-[14px] font-[600] text-gray-700">Kurs mavjud boledigon filiallar</label>
+                                    <button className="text-[14px] text-purple-600 font-[500]">Hammasini tanlash</button>
+                                </div>
+                                <div className="space-y-[10px]">
+                                    <label className="flex items-center gap-[10px] cursor-pointer">
+                                        <input type="checkbox" className="w-[18px] h-[18px] accent-purple-600" defaultChecked />
+                                        <span className="text-[14px] text-gray-700">Filial 1</span>
+                                    </label>
+                                    <label className="flex items-center gap-[10px] cursor-pointer">
+                                        <input type="checkbox" className="w-[18px] h-[18px] accent-purple-600" defaultChecked />
+                                        <span className="text-[14px] text-gray-700">Filial 2</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Davomiyligi */}
+                            <div className="grid grid-cols-1 gap-[20px]">
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-700 mb-[8px]">Dars davomiyligi</label>
+                                    <div className="relative">
+                                        <select className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none appearance-none bg-white">
+                                            <option>Tanlang</option>
+                                        </select>
+                                        <i className="fa-solid fa-chevron-down absolute right-[12px] top-[14px] text-gray-400 text-[12px]"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-700 mb-[8px]">Kurs davomiyligi (oylarda)</label>
+                                    <div className="relative">
+                                        <select className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none appearance-none bg-white">
+                                            <option>Tanlang</option>
+                                        </select>
+                                        <i className="fa-solid fa-chevron-down absolute right-[12px] top-[14px] text-gray-400 text-[12px]"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Narx */}
+                            <div>
+                                <label className="block text-[14px] font-[600] text-gray-700 mb-[8px]">Narx</label>
+                                <div className="relative">
+                                    <i className="fa-regular fa-money-bill-1 absolute left-[12px] top-[12px] text-gray-400"></i>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Narxini kiriting"
+                                        className="w-full pl-[40px] pr-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Description */}
+                            <div>
+                                <label className="block text-[14px] font-[600] text-gray-700 mb-[8px]">Description</label>
+                                <textarea 
+                                    rows="4"
+                                    placeholder="A little about the company and the team that you'll be working with."
+                                    className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500 resize-none"
+                                ></textarea>
+                                <p className="text-[12px] text-gray-400 mt-1">This is a hint text to help user.</p>
+                            </div>
+
+                            {/* Rangi */}
+                            <div>
+                                <label className="block text-[14px] font-[600] text-gray-700 mb-[4px]">Rangi</label>
+                                <p className="text-[12px] text-gray-500 mb-[12px]">The color you choose will be displayed to users and in the list of roles.</p>
+                                <div className="flex flex-wrap gap-[10px]">
+                                    {["#334155", "#7c3aed", "#ef4444", "#c2410c", "#059669", "#0284c7", "#2563eb", "#6d28d9", "#be185d"].map(color => (
+                                        <div 
+                                            key={color}
+                                            className="w-[30px] h-[30px] rounded-full cursor-pointer hover:scale-110 transition-transform"
+                                            style={{ backgroundColor: color }}
+                                        ></div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-[24px] border-t bg-gray-50 flex gap-[12px]">
+                            <button 
+                                className="flex-1 py-[10px] text-gray-600 font-[600] border border-gray-200 rounded-[10px] bg-white hover:bg-gray-100 transition-colors"
+                                onClick={() => setIsDrawerOpen(false)}
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                className="flex-1 py-[10px] bg-purple-600 text-white font-[600] rounded-[10px] hover:bg-purple-700 transition-colors"
+                                onClick={() => setIsDrawerOpen(false)}
+                            >
+                                Saqlash
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
