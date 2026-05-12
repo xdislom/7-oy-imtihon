@@ -14,7 +14,7 @@ export default function Login() {
             <div className="flex-1 flex flex-col items-center justify-center p-[20px] md:p-12 bg-white">
 
                 <div className="max-w-[450px] w-full text-center space-y-6">
-                    <h1 className="text-[16px] sm:text-[18px] font-[500] w-[400px] m-auto mb-[10px]">
+                    <h1 className="text-[16px] sm:text-[18px] sm:m-auto font-[500] w-[400px] m-auto mb-[10px]">
                         MUHAMMAD AL-XORAZMIY NOMIDAGI TOSHKENT AXBOROT TEXNOLOGIYALARI UNIVERSITETI
                     </h1>
 
