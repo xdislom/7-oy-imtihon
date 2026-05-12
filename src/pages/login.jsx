@@ -3,7 +3,7 @@ import { Button } from "@mui/material"
 import study from "../assets/study.svg"
 import tatu from "../assets/tatu.png"
 
-export default function Login() {
+export default function login() {
     return (
         <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden">
 
@@ -47,7 +47,7 @@ export default function Login() {
                     </div>
 
                     <div className="pt-2">
-                        <Link to="/main">
+                        <Link to="/dashboard">
                             <Button
                                 variant="contained"
                                 className="w-full h-[50px] hover:bg-[#1565c0] text-base font-[500] shadow-none"

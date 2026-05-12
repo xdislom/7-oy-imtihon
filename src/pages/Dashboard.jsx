@@ -1,5 +1,4 @@
-import { red } from "@mui/material/colors"
-import educoin from "../assets/educoin.jpg"
+import najot from "../assets/logo.jpg"
 import { Button } from "@mui/material"
 import Avatar from '@mui/material/Avatar';
 
@@ -14,6 +13,8 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 
 import { Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+
+import Sidebar from "../components/Sidebar";
 
 const MaterialUISwitch = styled(Switch)(({ theme }) => ({
     width: 62,
@@ -58,62 +59,18 @@ const MaterialUISwitch = styled(Switch)(({ theme }) => ({
     },
 }));
 
-export default function Main() {
+export default function Dashboard() {
     return (
         <div className="max-w-[1600px] m-auto">
             <div className="flex flex-col md:flex-row">
 
-                <div className="hidden md:block w-[300px] h-[825px] p-[20px]">
-                    <ul>
-                        <div className="flex">
-                            <img src={educoin} alt="educoin" className="w-[50px]" />
-                            <li className="text-[24px] text-purple-500 font-[500] pt-[7px]">EduCoin</li>
-                        </div>
-                        <hr className="w-[200px]" />
-                        <li className="text-[20px] font-[500] pl-[20px] pt-[10px] rounded-[10px] mt-[15px] flex gap-[10px] hover:text-white h-[50px] hover:bg-purple-600 ">
-                            <i className="fa-solid fa-house pt-[5px]"></i>
-                            Asosiy
-                        </li>
-                        <li className="text-[20px] font-[500] pl-[20px] pt-[10px] rounded-[10px] mt-[15px] flex gap-[10px] hover:text-white h-[50px] hover:bg-purple-600 ">
-                            <i className="fa-solid fa-user-tie pt-[5px]"></i>
-                            O'qituvchilar
-                        </li>
-                        <li className="text-[20px] font-[500] pl-[20px] pt-[10px] rounded-[10px] mt-[15px] flex gap-[10px] hover:text-white h-[50px] hover:bg-purple-600 ">
-                            <i className="fa-solid fa-book-journal-whills pt-[5px]"></i>
-                            Sinflar
-                        </li>
-                        <li className="text-[20px] font-[500] pl-[20px] pt-[10px] rounded-[10px] mt-[15px] flex gap-[10px] hover:text-white h-[50px] hover:bg-purple-600 ">
-                            <i className="fa-solid fa-user-graduate pt-[5px]"></i>
-                            Talabalar
-                        </li>
-                        <li className="text-[20px] font-[500] pl-[20px] pt-[10px] rounded-[10px] mt-[15px] flex gap-[10px] hover:text-white h-[50px] hover:bg-purple-600 ">
-                            <i className="fa-regular fa-gem pt-[5px]"></i>
-                            Sovg'alar
-                        </li>
-                        <li className="text-[20px] font-[500] pl-[20px] pt-[10px] rounded-[10px] mt-[15px] flex gap-[10px] hover:text-white h-[50px] hover:bg-purple-600 ">
-                            <i className="fa-solid fa-sliders pt-[5px]"></i>
-                            Boshqarish
-                        </li>
-                    </ul>
-                    <div className="w-[260px] h-[150px] rounded-[20px] p-[25px] bg-gray-100 border border-[1px] mt-[200px]">
-                        <i className="fa-solid fa-book-tanakh text-[40px]"></i>
-                        <h4 className="mt-[-50px] ml-[60px]">Obuna</h4>
-                        <h5 className="text-red-400 text-[14px] font-[500] ml-[60px]">Obunangiz tugagan</h5>
-                        <Button variant="contained" sx={{
-                            bgcolor: 'red',
-                            marginTop: 5,
-                            fontSize: 13,
-                            display: "flex",
-                            gap: 1
-                        }}><i className="fa-solid fa-bolt"></i> Obunani yangilash</Button>
-                    </div>
-                </div>
+                <Sidebar />
 
                 <div className="w-full min-h-screen md:pl-[30px] p-[15px] md:p-0 bg-gray-100 pb-[40px]">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                         <div className="md:hidden flex items-center mb-4">
-                            <img src={educoin} alt="educoin" className="w-[40px]" />
-                            <span className="text-[20px] text-purple-500 font-[500] ml-[5px]">EduCoin</span>
+                            <img src={najot} alt="najot" className="w-[40px]" />
+                            <span className="text-[20px] text-purple-500 font-[500] ml-[5px]">NajoEdu</span>
                         </div>
 
                         <div className="flex items-center gap-[5px] ml-auto sm:mt-0">
