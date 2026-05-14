@@ -71,7 +71,8 @@ export default function Groups() {
                                 textTransform: 'none', 
                                 borderRadius: '10px', 
                                 fontWeight: 600,
-                                px: 3
+                                px: 3,
+                                '&:hover': { bgcolor: '#6d28d9' }
                             }}
                         >
                             + Guruh qo'shish
@@ -340,19 +341,28 @@ export default function Groups() {
             {/* Talaba qo'shish Modal */}
             {isStudentModalOpen && (
                 <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
-                    <div className="bg-white w-full max-w-[400px] rounded-[24px] shadow-2xl overflow-hidden animate-fade-in">
+                    <div className="bg-white w-full max-w-[420px] rounded-[24px] shadow-2xl overflow-hidden animate-fade-in">
                         <div className="p-[24px] relative">
                             <h3 className="text-[18px] font-[700] text-gray-800 mb-1">Talaba qo'shish</h3>
                             <p className="text-[13px] text-gray-500 mb-[20px]">Bitta yoki bir nechta talabani tanlang</p>
                             <i className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[18px] hover:text-red-500" onClick={() => setIsStudentModalOpen(false)}></i>
 
-                            <div className="relative mb-[16px]">
-                                <i className="fa-solid fa-magnifying-glass absolute left-[12px] top-[12px] text-gray-300"></i>
-                                <input 
-                                    type="text" 
-                                    placeholder="Talaba qidirish..."
-                                    className="w-full pl-[36px] pr-[12px] py-[10px] bg-gray-50/50 border border-gray-100 rounded-[12px] outline-none text-[14px] focus:border-purple-300"
-                                />
+                            {/* Search and Action Bar as per image */}
+                            <div className="flex items-center gap-[8px] mb-[20px]">
+                                <div className="p-[10px] bg-gray-50 rounded-[12px] text-gray-400 border border-gray-100">
+                                    <i className="fa-regular fa-calendar text-[18px]"></i>
+                                </div>
+                                <button className="bg-[#7c3aed] text-white px-[16px] py-[10px] rounded-[12px] font-[600] text-[14px] flex items-center gap-[8px] hover:bg-[#6d28d9] transition-colors shadow-sm">
+                                    <i className="fa-solid fa-plus text-[12px]"></i> Qo'shish <i className="fa-solid fa-chevron-down text-[10px]"></i>
+                                </button>
+                                <div className="flex-1 relative">
+                                    <i className="fa-solid fa-magnifying-glass absolute left-[12px] top-[12px] text-gray-300"></i>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Qidirish..."
+                                        className="w-full pl-[36px] pr-[12px] py-[10px] bg-white border border-gray-100 rounded-[12px] outline-none text-[14px] focus:border-purple-300 shadow-sm"
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-[2px] max-h-[300px] overflow-y-auto mb-[24px] border border-gray-100 rounded-[16px]">
@@ -373,7 +383,7 @@ export default function Groups() {
 
                             <div className="flex justify-end gap-[12px]">
                                 <button className="px-[20px] py-[10px] text-gray-500 font-[600] hover:text-gray-800" onClick={() => setIsStudentModalOpen(false)}>Bekor qilish</button>
-                                <button className="px-[30px] py-[10px] bg-purple-600 text-white font-[600] rounded-[12px] hover:bg-purple-700 transition-colors" onClick={() => setIsStudentModalOpen(false)}>Saqlash</button>
+                                <button className="px-[30px] py-[10px] bg-purple-600 text-white font-[600] rounded-[12px] hover:bg-purple-700 transition-colors shadow-md" onClick={() => setIsStudentModalOpen(false)}>Saqlash</button>
                             </div>
                         </div>
                     </div>
@@ -383,19 +393,28 @@ export default function Groups() {
             {/* O'qituvchi qo'shish Modal (Limited to 1) */}
             {isTeacherModalOpen && (
                 <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
-                    <div className="bg-white w-full max-w-[400px] rounded-[24px] shadow-2xl overflow-hidden animate-fade-in">
+                    <div className="bg-white w-full max-w-[420px] rounded-[24px] shadow-2xl overflow-hidden animate-fade-in">
                         <div className="p-[24px] relative">
                             <h3 className="text-[18px] font-[700] text-gray-800 mb-1">O'qituvchi qo'shish</h3>
                             <p className="text-[13px] text-gray-500 mb-[20px]">Faqat bitta o'qituvchini tanlang</p>
                             <i className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[18px] hover:text-red-500" onClick={() => setIsTeacherModalOpen(false)}></i>
 
-                            <div className="relative mb-[16px]">
-                                <i className="fa-solid fa-magnifying-glass absolute left-[12px] top-[12px] text-gray-300"></i>
-                                <input 
-                                    type="text" 
-                                    placeholder="O'qituvchi qidirish..."
-                                    className="w-full pl-[36px] pr-[12px] py-[10px] bg-gray-50/50 border border-gray-100 rounded-[12px] outline-none text-[14px] focus:border-purple-300"
-                                />
+                            {/* Search and Action Bar as per image */}
+                            <div className="flex items-center gap-[8px] mb-[20px]">
+                                <div className="p-[10px] bg-gray-50 rounded-[12px] text-gray-400 border border-gray-100">
+                                    <i className="fa-regular fa-calendar text-[18px]"></i>
+                                </div>
+                                <button className="bg-[#7c3aed] text-white px-[16px] py-[10px] rounded-[12px] font-[600] text-[14px] flex items-center gap-[8px] hover:bg-[#6d28d9] transition-colors shadow-sm">
+                                    <i className="fa-solid fa-plus text-[12px]"></i> Qo'shish <i className="fa-solid fa-chevron-down text-[10px]"></i>
+                                </button>
+                                <div className="flex-1 relative">
+                                    <i className="fa-solid fa-magnifying-glass absolute left-[12px] top-[12px] text-gray-300"></i>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Qidirish..."
+                                        className="w-full pl-[36px] pr-[12px] py-[10px] bg-white border border-gray-100 rounded-[12px] outline-none text-[14px] focus:border-purple-300 shadow-sm"
+                                    />
+                                </div>
                             </div>
 
                             <div className="space-y-[2px] max-h-[300px] overflow-y-auto mb-[24px] border border-gray-100 rounded-[16px]">
@@ -414,7 +433,7 @@ export default function Groups() {
 
                             <div className="flex justify-end gap-[12px]">
                                 <button className="px-[20px] py-[10px] text-gray-500 font-[600] hover:text-gray-800" onClick={() => setIsTeacherModalOpen(false)}>Bekor qilish</button>
-                                <button className="px-[30px] py-[10px] bg-purple-600 text-white font-[600] rounded-[12px] hover:bg-purple-700 transition-colors" onClick={() => setIsTeacherModalOpen(false)}>Saqlash</button>
+                                <button className="px-[30px] py-[10px] bg-purple-600 text-white font-[600] rounded-[12px] hover:bg-purple-700 transition-colors shadow-md" onClick={() => setIsTeacherModalOpen(false)}>Saqlash</button>
                             </div>
                         </div>
                     </div>

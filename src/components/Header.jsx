@@ -86,31 +86,24 @@ export default function Header({ onMenuClick }) {
             </div>
 
             {/* Right Side: Language, Notification, Theme, Avatar */}
-            <div className="flex items-center gap-[10px] ml-auto">
+            <div className="flex items-center gap-[15px] ml-auto">
                 <div className="w-[140px]">
-                    <Accordion
-                        disableGutters
-                        elevation={0}
-                        sx={{ border: '1px solid #e5e7eb', borderRadius: '15px', bgcolor: 'white' }}
-                    >
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <p className="text-[14px] font-[500]">O'zbekcha</p>
-                        </AccordionSummary>
-                        <AccordionDetails sx={{ borderTop: '1px solid #e5e7eb' }}>
-                            <p className="text-[14px] font-[500] cursor-pointer hover:text-purple-600">Ruscha</p>
-                            <p className="text-[14px] font-[500] cursor-pointer hover:text-purple-600 mt-1">Ingilizcha</p>
-                        </AccordionDetails>
-                    </Accordion>
+                    <div className="flex items-center justify-between px-[16px] py-[8px] bg-white border border-gray-100 rounded-[12px] shadow-sm cursor-pointer hover:bg-gray-50 transition-colors">
+                        <span className="text-[14px] font-[500]">O'zbekcha</span>
+                        <i className="fa-solid fa-chevron-down text-[12px] text-gray-400"></i>
+                    </div>
                 </div>
                 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-3">
                     <Tooltip title="Notification">
-                        <IconButton sx={{ color: 'gray' }}>
-                            <NotificationsIcon />
+                        <IconButton sx={{ color: 'gray', p: 0.5 }}>
+                            <NotificationsIcon sx={{ fontSize: 22 }} />
                         </IconButton>
                     </Tooltip>
-                    <MaterialUISwitch defaultChecked />
-                    <Avatar alt="User Profile" src="/static/images/avatar/1.jpg" className="!bg-pink-500 ml-1" />
+                    <MaterialUISwitch />
+                    <div className="w-[40px] h-[40px] bg-pink-500 rounded-full flex items-center justify-center text-white font-[600] text-[18px] ml-1 shadow-sm">
+                        U
+                    </div>
                 </div>
             </div>
         </div>
