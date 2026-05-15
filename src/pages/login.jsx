@@ -4,21 +4,6 @@ import study from "../assets/study.svg"
 import tatu from "../assets/tatu.png"
 
 export default function login() {
-    const url = 'https://najot-edu.softwareengineer.uz/api/v1/auth/login';
-
-    const response = fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            "username": "Islom",
-            "password": "Islom_20"
-        })
-    })
-    .then(res => res.json())
-    .then(data => console.log(data))
-    .catch(err => console.error('Error:', err));
 
     return (
         <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden">

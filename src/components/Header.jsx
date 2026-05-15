@@ -61,19 +61,23 @@ export default function Header({ onMenuClick }) {
                     <i className="fa-solid fa-bars"></i>
                 </IconButton>
                 
-                <div className="hidden md:flex items-center gap-[10px]">
-                    <button className="w-[45px] h-[45px] bg-white rounded-[12px] flex items-center justify-center shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors">
-                        <i className="fa-regular fa-calendar text-gray-500 text-[18px]"></i>
+                <div className="hidden md:flex items-center gap-[15px]">
+                    <button className="flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+                        <i className="fa-regular fa-calendar text-[22px]"></i>
                     </button>
-                    <button className="w-[45px] h-[45px] bg-white rounded-[12px] flex items-center justify-center shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors">
-                        <i className="fa-solid fa-plus text-gray-500 text-[18px]"></i>
+                    
+                    <button className="flex items-center gap-2 px-4 py-[10px] bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-[12px] shadow-md hover:shadow-lg transition-all active:scale-95">
+                        <i className="fa-solid fa-plus text-[16px]"></i>
+                        <span className="font-[600] text-[15px]">Qo'shish</span>
+                        <i className="fa-solid fa-chevron-down text-[12px] ml-1 opacity-80"></i>
                     </button>
-                    <div className="relative w-[300px]">
-                        <i className="fa-solid fa-magnifying-glass absolute left-[15px] top-[14px] text-gray-400"></i>
+
+                    <div className="relative w-[280px]">
+                        <i className="fa-solid fa-magnifying-glass absolute left-[15px] top-[13px] text-gray-300 text-[14px]"></i>
                         <input 
                             type="text" 
-                            placeholder="Search"
-                            className="w-full pl-[45px] pr-[15px] py-[10px] bg-white border border-gray-100 rounded-[15px] outline-none shadow-sm focus:border-purple-300 transition-all"
+                            placeholder="Qidirish..."
+                            className="w-full pl-[45px] pr-[15px] py-[10px] bg-white border border-gray-100 rounded-[12px] outline-none shadow-sm focus:border-purple-300 transition-all text-[14px] text-gray-600"
                         />
                     </div>
                 </div>
@@ -87,22 +91,22 @@ export default function Header({ onMenuClick }) {
 
             {/* Right Side: Language, Notification, Theme, Avatar */}
             <div className="flex items-center gap-[15px] ml-auto">
-                <div className="w-[140px]">
-                    <div className="flex items-center justify-between px-[16px] py-[8px] bg-white border border-gray-100 rounded-[12px] shadow-sm cursor-pointer hover:bg-gray-50 transition-colors">
-                        <span className="text-[14px] font-[500]">O'zbekcha</span>
-                        <i className="fa-solid fa-chevron-down text-[12px] text-gray-400"></i>
-                    </div>
+                <div className="flex items-center gap-[10px] px-[16px] py-[8px] bg-white border border-gray-100 rounded-[12px] shadow-sm cursor-pointer hover:bg-gray-50 transition-colors">
+                    <span className="text-[14px] font-[500] text-gray-700">O'zbekcha</span>
+                    <i className="fa-solid fa-chevron-down text-[12px] text-gray-400"></i>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                     <Tooltip title="Notification">
-                        <IconButton sx={{ color: 'gray', p: 0.5 }}>
-                            <NotificationsIcon sx={{ fontSize: 22 }} />
+                        <IconButton sx={{ color: '#4b5563', p: 0.5 }}>
+                            <i className="fa-regular fa-bell text-[20px]"></i>
                         </IconButton>
                     </Tooltip>
-                    <MaterialUISwitch />
-                    <div className="w-[40px] h-[40px] bg-pink-500 rounded-full flex items-center justify-center text-white font-[600] text-[18px] ml-1 shadow-sm">
-                        U
+                    <IconButton sx={{ color: '#4b5563', p: 0.5 }}>
+                        <i className="fa-regular fa-moon text-[20px]"></i>
+                    </IconButton>
+                    <div className="w-[42px] h-[42px] bg-[#7c3aed] rounded-full flex items-center justify-center text-white font-[600] text-[18px] shadow-sm cursor-pointer hover:bg-purple-700 transition-colors">
+                        A
                     </div>
                 </div>
             </div>
