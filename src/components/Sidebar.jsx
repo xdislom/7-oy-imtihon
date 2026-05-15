@@ -23,6 +23,7 @@ const settingsSubmenu = [
 export default function Sidebar({ isOpen, onClose }) {
     const location = useLocation()
     const [isSubmenuOpen, setIsSubmenuOpen] = useState(false)
+    const [isCollapsed, setIsCollapsed] = useState(false)
 
     const handleBoshqarishClick = (e) => {
         e.preventDefault()
@@ -55,18 +56,29 @@ export default function Sidebar({ isOpen, onClose }) {
             <div className={`
                 fixed md:sticky top-0 left-0 z-[101] h-screen bg-white transition-all duration-300 flex shrink-0
                 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+                ${isCollapsed ? 'w-[80px]' : 'w-[280px]'}
             `}>
+                {/* Minimalist Toggle Button */}
+                <button 
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    className="hidden md:flex absolute -right-[12px] top-[25px] w-[24px] h-[24px] bg-purple-600 rounded-full items-center justify-center text-white shadow-md z-[105]"
+                >
+                    <i className={`fa-solid fa-chevron-${isCollapsed ? 'right' : 'left'} text-[10px]`}></i>
+                </button>
+
                 {/* Main Sidebar */}
-                <div className="w-[280px] h-full p-[20px] flex flex-col justify-between border-r border-gray-100 bg-white z-[102]">
+                <div className={`h-full p-[20px] flex flex-col justify-between border-r border-gray-100 bg-white z-[102] w-full overflow-hidden`}>
                     <ul className="list-none p-0 m-0">
-                        <div className="flex items-center justify-between">
+                        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                             <div className="flex items-center">
                                 <img src={najot} alt="najot" className="w-[40px]" />
-                                <li className="text-[24px] text-purple-500 font-[500] pt-[7px] ml-2">NajotEdu</li>
+                                {!isCollapsed && <li className="text-[24px] text-purple-500 font-[500] pt-[7px] ml-2">NajotEdu</li>}
                             </div>
-                            <IconButton onClick={onClose} className="md:!hidden">
-                                <i className="fa-solid fa-xmark text-gray-400"></i>
-                            </IconButton>
+                            {!isCollapsed && (
+                                <IconButton onClick={onClose} className="md:!hidden">
+                                    <i className="fa-solid fa-xmark text-gray-400"></i>
+                                </IconButton>
+                            )}
                         </div>
                         <hr className="w-full mt-2 mb-2" />
                         {navItems.map((item) => (
@@ -82,45 +94,50 @@ export default function Sidebar({ isOpen, onClose }) {
                                     }
                                 }}
                                 className={({ isActive }) =>
-                                    `text-[20px] font-[500] pl-[20px] pt-[10px] rounded-[10px] mt-[15px] flex gap-[10px] h-[50px] cursor-pointer transition-colors duration-200 no-underline ${
+                                    `text-[20px] font-[500] rounded-[10px] mt-[15px] flex items-center gap-[10px] h-[50px] cursor-pointer transition-colors duration-200 no-underline ${
+                                        isCollapsed ? 'justify-center px-0' : 'pl-[20px]'
+                                    } ${
                                         isActive && !isSubmenuOpen
                                             ? "bg-purple-600 text-white"
                                             : "text-gray-800 hover:bg-purple-600 hover:text-white"
                                     } ${item.to === "/settings" && isSubmenuOpen ? "bg-purple-600 text-white" : ""}`
                                 }
                             >
-                                <i className={`${item.icon} pt-[5px]`}></i>
-                                {item.label}
+                                <i className={`${item.icon} ${isCollapsed ? '' : 'pt-[5px]'}`}></i>
+                                {!isCollapsed && item.label}
                             </NavLink>
                         ))}
                     </ul>
-                    <div className="w-full rounded-[20px] p-[15px] bg-gray-50 border border-gray-100 mt-4">
-                        <div className="flex items-center gap-[10px]">
-                            <div className="w-[40px] h-[40px] bg-purple-100 rounded-[10px] flex items-center justify-center">
-                                <i className="fa-solid fa-crown text-purple-600"></i>
+                    {!isCollapsed && (
+                        <div className="w-full rounded-[20px] p-[15px] bg-gray-50 border border-gray-100 mt-4">
+                            <div className="flex items-center gap-[10px]">
+                                <div className="w-[40px] h-[40px] bg-purple-100 rounded-[10px] flex items-center justify-center">
+                                    <i className="fa-solid fa-crown text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <h4 className="text-[14px] font-[600] m-0">Obuna</h4>
+                                    <h5 className="text-red-400 text-[12px] font-[500] m-0">Muddati tugagan</h5>
+                                </div>
                             </div>
-                            <div>
-                                <h4 className="text-[14px] font-[600] m-0">Obuna</h4>
-                                <h5 className="text-red-400 text-[12px] font-[500] m-0">Muddati tugagan</h5>
-                            </div>
+                            <Button variant="contained" fullWidth sx={{
+                                bgcolor: '#ef4444',
+                                '&:hover': { bgcolor: '#dc2626' },
+                                marginTop: 2,
+                                fontSize: 12,
+                                textTransform: 'none',
+                                borderRadius: '10px',
+                                gap: 1
+                            }}>
+                                <i className="fa-solid fa-bolt"></i> Yangilash
+                            </Button>
                         </div>
-                        <Button variant="contained" fullWidth sx={{
-                            bgcolor: '#ef4444',
-                            '&:hover': { bgcolor: '#dc2626' },
-                            marginTop: 2,
-                            fontSize: 12,
-                            textTransform: 'none',
-                            borderRadius: '10px',
-                            gap: 1
-                        }}>
-                            <i className="fa-solid fa-bolt"></i> Yangilash
-                        </Button>
-                    </div>
+                    )}
                 </div>
 
                 {/* Settings Submenu Panel (Overlay) */}
                 <div className={`
-                    fixed md:absolute top-0 left-[280px] z-[101] w-[240px] h-full bg-gray-50 border-r border-gray-100 p-[20px] pt-[30px] transition-all duration-300
+                    fixed md:absolute top-0 z-[101] w-[240px] h-full bg-gray-50 border-r border-gray-100 p-[20px] pt-[30px] transition-all duration-300
+                    ${isCollapsed ? 'left-[80px]' : 'left-[280px]'}
                     ${isSubmenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'}
                 `}>
                     <p className="text-gray-400 text-[13px] font-[600] uppercase tracking-wider mb-2 px-[15px]">Menu</p>
