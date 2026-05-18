@@ -1,9 +1,44 @@
-import { Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { Button } from "@mui/material"
+import { useState } from "react"
 import study from "../assets/study.svg"
 import tatu from "../assets/tatu.png"
 
-export default function login() {
+export default function Login() {
+    const navigate = useNavigate()
+    const [phone, setPhone] = useState("")
+    const [password, setPassword] = useState("")
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState("")
+
+    const handleSubmit = async () => {
+        console.log("Yuborilayotgan data:", { phone, password })
+        try {
+            setLoading(true)
+            setError("")
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ phone, password })
+            })
+
+            const data = await response.json()
+            console.log("Server javobi:", data)
+
+            if (response.ok) {
+                localStorage.setItem("token", data.token || data.access_token)
+                navigate("/dashboard")
+            } else {
+                setError(data.message || "Telefon yoki parol noto'g'ri!")
+            }
+        } catch (error) {
+            setError("Server bilan bog'lanishda xatolik!")
+        } finally {
+            setLoading(false)
+        }
+    }
 
     return (
         <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden">
@@ -30,10 +65,12 @@ export default function login() {
 
                 <div className="max-w-[450px] w-full mt-8 space-y-5">
                     <div className="flex flex-col gap-[5px]">
-                        <label className="font-[500] text-gray-700">Login</label>
+                        <label className="font-[500] text-gray-700">Telefon raqam</label>
                         <input
                             type="text"
-                            placeholder="Loginni kiriting"
+                            placeholder="Telefon raqamni kiriting"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
                             className="w-full h-[50px] p-[15px] border border-gray-300 rounded-[10px] outline-none"
                         />
                     </div>
@@ -43,25 +80,30 @@ export default function login() {
                         <input
                             type="password"
                             placeholder="Parolni kiriting"
-                            className="w-full h-[50px] px-[15px] border border-gray-300 rounded-[10px] outline-none "
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full h-[50px] px-[15px] border border-gray-300 rounded-[10px] outline-none"
                         />
                     </div>
 
+                    {error && (
+                        <p className="text-red-500 text-[14px] font-[500]">{error}</p>
+                    )}
+
                     <div className="pt-2">
-                        <Link to="/dashboard">
-                            <Button
-                                variant="contained"
-                                className="w-full h-[50px] hover:bg-[#1565c0] text-base font-[500] shadow-none"
-                                style={{ width: '100%', height: '50px' }}
-                            >
-                                Kirish
-                            </Button>
-                        </Link>
+                        <Button
+                            variant="contained"
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="w-full h-[50px] hover:bg-[#1565c0] text-base font-[500] shadow-none"
+                            style={{ width: '100%', height: '50px' }}
+                        >
+                            {loading ? "Yuklanmoqda..." : "Kirish"}
+                        </Button>
                     </div>
                 </div>
 
             </div>
         </div>
     )
-
 }
