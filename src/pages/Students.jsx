@@ -16,6 +16,87 @@ export default function Students() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedGroups, setSelectedGroups] = useState([])
     const [tempSelected, setTempSelected] = useState([])
+    const [students, setStudents] = useState(studentsData)
+    const [phone, setPhone] = useState("+998")
+    const [email, setEmail] = useState("")
+    const [name, setName] = useState("")
+    const [birthDate, setBirthDate] = useState("")
+    const [address, setAddress] = useState("")
+    const [password, setPassword] = useState("")
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState("")
+
+    const handleSave = async () => {
+        setLoading(true)
+        setError("")
+        const token = localStorage.getItem("token")
+        
+        // Helper to convert dd/mm/yyyy or dd.mm.yyyy to YYYY-MM-DD
+        const convertToISO = (dateStr) => {
+            if (!dateStr) return null;
+            let parts = dateStr.split('.');
+            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            parts = dateStr.split('/');
+            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            return dateStr;
+        }
+
+        const payload = {
+            phone,
+            email,
+            full_name: name,
+            birth_date: convertToISO(birthDate),
+            address,
+            password,
+            groups: selectedGroups
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/students", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            })
+
+            const data = await response.json()
+            console.log("Save student response:", data)
+
+            if (response.ok) {
+                const newStudent = {
+                    id: data.id || students.length + 1,
+                    name,
+                    groups: selectedGroups,
+                    phone,
+                    email,
+                    birthDate,
+                    address,
+                    createdDate: new Date().toLocaleDateString(),
+                    initial: name.charAt(0).toUpperCase() || "T",
+                    color: "bg-purple-100 text-purple-600"
+                }
+                setStudents([...students, newStudent])
+                setIsDrawerOpen(false)
+                setPhone("+998")
+                setEmail("")
+                setName("")
+                setBirthDate("")
+                setAddress("")
+                setPassword("")
+                setSelectedGroups([])
+            } else {
+                setError(data.message || "Xatolik yuz berdi!")
+            }
+        } catch (error) {
+            console.error("Error saving student:", error)
+            setError("Server bilan bog'lanishda xatolik!")
+        } finally {
+            setLoading(false)
+        }
+    }
+
 
     const handleAddGroups = () => {
         setSelectedGroups([...new Set([...selectedGroups, ...tempSelected])])
@@ -112,7 +193,7 @@ export default function Students() {
                                         </tr>
                                     </thead>
                                     <tbody className="text-[14px]">
-                                        {studentsData.map((student) => (
+                                        {students.map((student) => (
                                             <tr key={student.id} className="border-b border-gray-50 hover:bg-gray-50/30 transition-colors">
                                                 <td className="py-[16px] px-[12px]"><Checkbox size="small" /></td>
                                                 <td className="py-[16px] px-[12px]">
@@ -197,7 +278,8 @@ export default function Students() {
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Telefon raqam</label>
                                 <input 
                                     type="text" 
-                                    defaultValue="+998"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
                                     className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 font-[500]"
                                 />
                             </div>
@@ -208,6 +290,8 @@ export default function Students() {
                                 <input 
                                     type="email" 
                                     placeholder="Elektron pochtani kiriting"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                     className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
                                 />
                             </div>
@@ -218,6 +302,8 @@ export default function Students() {
                                 <input 
                                     type="text" 
                                     placeholder="Ma'lumotni kiriting"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
                                     className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
                                 />
                             </div>
@@ -227,8 +313,9 @@ export default function Students() {
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Tug'ilgan sanasi</label>
                                 <div className="relative">
                                     <input 
-                                        type="text" 
-                                        placeholder="dd/mm/yyyy"
+                                        type="date" 
+                                        value={birthDate}
+                                        onChange={(e) => setBirthDate(e.target.value)}
                                         className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
                                     />
                                     <i className="fa-regular fa-calendar absolute right-[14px] top-[12px] text-gray-400"></i>
@@ -241,6 +328,8 @@ export default function Students() {
                                 <input 
                                     type="text" 
                                     placeholder="Manzilni kiriting"
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
                                     className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
                                 />
                             </div>
@@ -251,6 +340,8 @@ export default function Students() {
                                 <input 
                                     type="password" 
                                     placeholder="Parolni kiriting"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
                                     className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
                                 />
                             </div>
@@ -293,9 +384,20 @@ export default function Students() {
                                 </div>
                             </div>
                         </div>
+                        {error && (
+                            <div className="px-[24px] py-[8px] text-red-500 text-[13px] font-[500]">
+                                {error}
+                            </div>
+                        )}
                         <div className="p-[24px] border-t bg-white flex gap-[12px]">
                             <button className="flex-1 py-[12px] text-gray-700 font-[600] border border-gray-200 rounded-[12px] hover:bg-gray-50" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
-                            <button className="flex-1 py-[12px] bg-gray-100 text-gray-400 font-[600] rounded-[12px] cursor-not-allowed" onClick={() => setIsDrawerOpen(false)}>Saqlash</button>
+                            <button 
+                                className={`flex-1 py-[12px] font-[600] rounded-[12px] ${loading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`} 
+                                onClick={handleSave}
+                                disabled={loading}
+                            >
+                                {loading ? 'Saqlanmoqda...' : 'Saqlash'}
+                            </button>
                         </div>
                     </div>
                 </div>

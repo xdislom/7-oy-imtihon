@@ -12,7 +12,6 @@ export default function Login() {
     const [error, setError] = useState("")
 
     const handleSubmit = async () => {
-        console.log("Yuborilayotgan data:", { phone, password })
         try {
             setLoading(true)
             setError("")
@@ -28,7 +27,9 @@ export default function Login() {
             console.log("Server javobi:", data)
 
             if (response.ok) {
-                localStorage.setItem("token", data.token || data.access_token)
+                const token = data.token || data.access_token || data.accessToken || data.data?.token
+                console.log("Token:", token)
+                localStorage.setItem("token", token)
                 navigate("/dashboard")
             } else {
                 setError(data.message || "Telefon yoki parol noto'g'ri!")
@@ -65,10 +66,10 @@ export default function Login() {
 
                 <div className="max-w-[450px] w-full mt-8 space-y-5">
                     <div className="flex flex-col gap-[5px]">
-                        <label className="font-[500] text-gray-700">Telefon raqam</label>
+                        <label className="font-[500] text-gray-700">Login</label>
                         <input
                             type="text"
-                            placeholder="Telefon raqamni kiriting"
+                            placeholder="Loginni kiriting"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             className="w-full h-[50px] p-[15px] border border-gray-300 rounded-[10px] outline-none"
