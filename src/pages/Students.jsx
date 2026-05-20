@@ -1,13 +1,16 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from "../components/Sidebar"
 import Header from "../components/Header"
-import { Button, Checkbox, Pagination } from "@mui/material"
+import { Button, Checkbox } from "@mui/material"
 
-const studentsData = [
-    { id: 1, name: "Ali Valiyev", groups: ["N26", "n105"], phone: "+998976541223", email: "ali@gmail.com", birthDate: "12.12.2010", address: "Sirdaryo", createdDate: "12.05.2026", initial: "A", color: "bg-orange-100 text-orange-600" },
-    { id: 2, name: "Salim Qodirov", groups: ["n105"], phone: "+998977777777", email: "salim@gmail.com", birthDate: "14.01.2007", address: "Buxoro", createdDate: "14.05.2026", initial: "S", color: "bg-purple-100 text-purple-600" },
-    { id: 3, name: "Bobur", groups: ["n105"], phone: "+998999999999", email: "bobur@gmail.com", birthDate: "14.03.2002", address: "Toshkent", createdDate: "14.05.2026", initial: "B", color: "bg-blue-100 text-blue-600" },
-    { id: 4, name: "Qodir Salimov", groups: ["n105"], phone: "+998911111111", email: "qodir@gmail.com", birthDate: "29.04.2026", address: "O'zbekcha", createdDate: "14.05.2026", initial: "Q", color: "bg-indigo-100 text-indigo-600" },
+const colors = [
+    "bg-orange-100 text-orange-600",
+    "bg-purple-100 text-purple-600",
+    "bg-blue-100 text-blue-600",
+    "bg-indigo-100 text-indigo-600",
+    "bg-emerald-100 text-emerald-600",
+    "bg-rose-100 text-rose-600",
+    "bg-teal-100 text-teal-600"
 ]
 
 export default function Students() {
@@ -16,7 +19,7 @@ export default function Students() {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedGroups, setSelectedGroups] = useState([])
     const [tempSelected, setTempSelected] = useState([])
-    const [students, setStudents] = useState(studentsData)
+    const [students, setStudents] = useState([])
     const [phone, setPhone] = useState("+998")
     const [email, setEmail] = useState("")
     const [name, setName] = useState("")
@@ -25,27 +28,84 @@ export default function Students() {
     const [password, setPassword] = useState("")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const [toast, setToast] = useState(null) // { type: 'success' | 'error', message: string }
+
+    const showToast = (type, message) => {
+        setToast({ type, message })
+        setTimeout(() => setToast(null), 3500)
+    }
+
+    const fetchStudents = async () => {
+        const token = localStorage.getItem("token")
+        
+        const findStudentsArray = (obj) => {
+            if (Array.isArray(obj)) return obj;
+            if (!obj || typeof obj !== 'object') return [];
+            
+            if (Array.isArray(obj.data)) return obj.data;
+            if (obj.data && Array.isArray(obj.data.data)) return obj.data.data;
+            if (obj.data && Array.isArray(obj.data.students)) return obj.data.students;
+            if (Array.isArray(obj.students)) return obj.students;
+            if (Array.isArray(obj.items)) return obj.items;
+            if (Array.isArray(obj.rows)) return obj.rows;
+            if (Array.isArray(obj.list)) return obj.list;
+
+            for (const key of Object.keys(obj)) {
+                if (Array.isArray(obj[key])) {
+                    return obj[key];
+                }
+                if (obj[key] && typeof obj[key] === 'object') {
+                    const nested = findStudentsArray(obj[key]);
+                    if (nested.length > 0) return nested;
+                }
+            }
+            return [];
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/students", {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            })
+            if (response.ok) {
+                const data = await response.json()
+                console.log("Fetched students list raw:", data)
+                const list = findStudentsArray(data)
+                console.log("Extracted students array:", list)
+                const mapped = list.map((s, index) => ({
+                    id: s.id || s._id || index + 1,
+                    name: s.full_name || s.name || "Noma'lum student",
+                    groups: Array.isArray(s.groups) ? s.groups.map(g => typeof g === 'object' ? g.name : g) : [],
+                    phone: s.phone || "Noma'lum",
+                    email: s.email || "Noma'lum",
+                    birthDate: s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : "Noma'lum",
+                    address: s.address || "Noma'lum",
+                    createdDate: s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU') : "Noma'lum",
+                    initial: (s.full_name || s.name || "S").charAt(0).toUpperCase(),
+                    color: colors[index % colors.length]
+                }))
+                setStudents(mapped)
+            }
+        } catch (error) {
+            console.error("Error fetching students:", error)
+        }
+    }
+
+    useEffect(() => {
+        fetchStudents()
+    }, [])
 
     const handleSave = async () => {
         setLoading(true)
         setError("")
         const token = localStorage.getItem("token")
-        
-        // Helper to convert dd/mm/yyyy or dd.mm.yyyy to YYYY-MM-DD
-        const convertToISO = (dateStr) => {
-            if (!dateStr) return null;
-            let parts = dateStr.split('.');
-            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-            parts = dateStr.split('/');
-            if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-            return dateStr;
-        }
 
         const payload = {
             phone,
             email,
             full_name: name,
-            birth_date: convertToISO(birthDate),
+            birth_date: birthDate || null,
             address,
             password,
             groups: selectedGroups
@@ -65,19 +125,29 @@ export default function Students() {
             console.log("Save student response:", data)
 
             if (response.ok) {
-                const newStudent = {
-                    id: data.id || students.length + 1,
-                    name,
-                    groups: selectedGroups,
-                    phone,
-                    email,
-                    birthDate,
-                    address,
-                    createdDate: new Date().toLocaleDateString(),
-                    initial: name.charAt(0).toUpperCase() || "T",
-                    color: "bg-purple-100 text-purple-600"
-                }
-                setStudents([...students, newStudent])
+                // Yangi talabani darhol listga qo'shish
+                const newStudent = data.data || data
+                const idx = students.length
+                setStudents(prev => [
+                    ...prev,
+                    {
+                        id: newStudent.id || newStudent._id || Date.now(),
+                        name: newStudent.full_name || newStudent.name || name,
+                        groups: Array.isArray(newStudent.groups)
+                            ? newStudent.groups.map(g => typeof g === 'object' ? g.name : g)
+                            : selectedGroups,
+                        phone: newStudent.phone || phone,
+                        email: newStudent.email || email,
+                        birthDate: birthDate
+                            ? new Date(birthDate).toLocaleDateString('ru-RU')
+                            : "Noma'lum",
+                        address: newStudent.address || address || "Noma'lum",
+                        createdDate: new Date().toLocaleDateString('ru-RU'),
+                        initial: (name || "S").charAt(0).toUpperCase(),
+                        color: colors[idx % colors.length]
+                    }
+                ])
+                // Formani tozalash
                 setIsDrawerOpen(false)
                 setPhone("+998")
                 setEmail("")
@@ -86,12 +156,17 @@ export default function Students() {
                 setAddress("")
                 setPassword("")
                 setSelectedGroups([])
+                showToast("success", `"${name}" muvaffaqiyatli qo'shildi! ✓`)
             } else {
-                setError(data.message || "Xatolik yuz berdi!")
+                const errMsg = data.message || "Xatolik yuz berdi!"
+                setError(errMsg)
+                showToast("error", errMsg)
             }
         } catch (error) {
             console.error("Error saving student:", error)
-            setError("Server bilan bog'lanishda xatolik!")
+            const errMsg = "Server bilan bog'lanishda xatolik!"
+            setError(errMsg)
+            showToast("error", errMsg)
         } finally {
             setLoading(false)
         }
@@ -205,9 +280,9 @@ export default function Students() {
                                                     </div>
                                                 </td>
                                                 <td className="py-[16px] px-[12px]">
-                                                    <div className="flex justify-center gap-[4px]">
+                                                    <div className="flex flex-wrap justify-center gap-[4px] max-w-[200px] mx-auto">
                                                         {student.groups.map(group => (
-                                                            <span key={group} className="px-[8px] py-[2px] bg-gray-100 text-gray-500 rounded-[6px] text-[11px] font-[500]">
+                                                            <span key={group} className="px-[6px] py-[1px] bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-[4px] text-[10px] font-[500]">
                                                                 {group}
                                                             </span>
                                                         ))}
@@ -462,6 +537,20 @@ export default function Students() {
                 </div>
             )}
 
+            {/* Toast Notification */}
+            {toast && (
+                <div
+                    className={`fixed bottom-[32px] right-[32px] z-[999] flex items-center gap-[12px] px-[20px] py-[14px] rounded-[14px] shadow-2xl text-white text-[14px] font-[600] animate-toast-up ${
+                        toast.type === 'success'
+                            ? 'bg-emerald-500'
+                            : 'bg-red-500'
+                    }`}
+                >
+                    <i className={`fa-solid ${toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'} text-[18px]`}></i>
+                    {toast.message}
+                </div>
+            )}
+
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes slide-in {
                     from { transform: translateX(100%); }
@@ -470,6 +559,13 @@ export default function Students() {
                 @keyframes fade-in {
                     from { opacity: 0; transform: scale(0.95); }
                     to { opacity: 1; transform: scale(1); }
+                }
+                @keyframes toast-up {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-toast-up {
+                    animation: toast-up 0.3s ease-out;
                 }
                 .animate-slide-in {
                     animation: slide-in 0.3s ease-out;

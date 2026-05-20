@@ -8,7 +8,7 @@ export default function Dashboard() {
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
     return (
-        <div className="max-w-[1600px] m-auto bg-gray-50 min-h-screen">
+        <div className="w-full bg-gray-50 min-h-screen">
 
             <div className="flex">
                 <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
@@ -22,7 +22,6 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    {/* Dashboard Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-[20px]">
                         <div className="bg-white p-[25px] rounded-[18px] border border-gray-100 flex flex-col items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer group h-[160px]">
                             <div className="mb-3 group-hover:scale-110 transition-transform">
@@ -68,7 +67,6 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    {/* Accordions */}
                     <div className="mt-[40px] space-y-4">
                         <Accordion
                             disableGutters

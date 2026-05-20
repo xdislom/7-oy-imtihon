@@ -1,33 +1,131 @@
-import React, { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from "../components/Sidebar"
 import Header from "../components/Header"
 import { Button, Switch, Checkbox, Radio } from "@mui/material"
 
-const groupsData = [
-    { 
-        id: 1, 
-        status: true, 
-        name: "N26", 
-        course: "Backend", 
-        duration: "6 oy", 
-        time: "09:30", 
-        days: "Du, Se, Chor, Pay, Ju", 
-        room: "Autodesk", 
-        teacher: "Mohirbek", 
-        students: 1 
-    },
-    { 
-        id: 2, 
-        status: true, 
-        name: "n105", 
-        course: "Backend", 
-        duration: "6 oy", 
-        time: "16:00", 
-        days: "Se, Pay, Shan", 
-        room: "Autodesk", 
-        teacher: "Mohirbek", 
-        students: 4 
-    },
+const findGroupsArray = (obj) => {
+    if (Array.isArray(obj)) return obj
+    if (!obj || typeof obj !== 'object') return []
+
+    if (Array.isArray(obj.data)) return obj.data
+    if (obj.data && Array.isArray(obj.data.data)) return obj.data.data
+    if (obj.data && Array.isArray(obj.data.groups)) return obj.data.groups
+    if (Array.isArray(obj.groups)) return obj.groups
+    if (Array.isArray(obj.items)) return obj.items
+    if (Array.isArray(obj.rows)) return obj.rows
+    if (Array.isArray(obj.list)) return obj.list
+
+    for (const key of Object.keys(obj)) {
+        if (Array.isArray(obj[key])) return obj[key]
+        if (obj[key] && typeof obj[key] === 'object') {
+            const nested = findGroupsArray(obj[key])
+            if (nested.length > 0) return nested
+        }
+    }
+
+    return []
+}
+
+const findRoomsArray = (obj) => {
+    if (Array.isArray(obj)) return obj
+    if (!obj || typeof obj !== 'object') return []
+
+    if (Array.isArray(obj.data)) return obj.data
+    if (obj.data && Array.isArray(obj.data.data)) return obj.data.data
+    if (obj.data && Array.isArray(obj.data.rooms)) return obj.data.rooms
+    if (Array.isArray(obj.rooms)) return obj.rooms
+    if (Array.isArray(obj.items)) return obj.items
+    if (Array.isArray(obj.rows)) return obj.rows
+    if (Array.isArray(obj.list)) return obj.list
+
+    for (const key of Object.keys(obj)) {
+        if (Array.isArray(obj[key])) return obj[key]
+        if (obj[key] && typeof obj[key] === 'object') {
+            const nested = findRoomsArray(obj[key])
+            if (nested.length > 0) return nested
+        }
+    }
+
+    return []
+}
+
+const findCoursesArray = (obj) => {
+    if (Array.isArray(obj)) return obj
+    if (!obj || typeof obj !== 'object') return []
+
+    if (Array.isArray(obj.data)) return obj.data
+    if (obj.data && Array.isArray(obj.data.data)) return obj.data.data
+    if (obj.data && Array.isArray(obj.data.courses)) return obj.data.courses
+    if (Array.isArray(obj.courses)) return obj.courses
+    if (Array.isArray(obj.items)) return obj.items
+    if (Array.isArray(obj.rows)) return obj.rows
+    if (Array.isArray(obj.list)) return obj.list
+
+    for (const key of Object.keys(obj)) {
+        if (Array.isArray(obj[key])) return obj[key]
+        if (obj[key] && typeof obj[key] === 'object') {
+            const nested = findCoursesArray(obj[key])
+            if (nested.length > 0) return nested
+        }
+    }
+
+    return []
+}
+
+const getName = (value, fallback = "Noma'lum") => {
+    if (!value) return fallback
+    if (typeof value === 'string') return value
+    return value.name || value.title || value.full_name || fallback
+}
+
+const getCount = (value) => {
+    if (Array.isArray(value)) return value.length
+    if (typeof value === 'number') return value
+    return 0
+}
+
+const formatDays = (value) => {
+    if (Array.isArray(value)) return value.map(day => getName(day, day)).join(', ')
+    return value || "Noma'lum"
+}
+
+const formatDuration = (group) => {
+    const duration = group.duration || group.duration_month || group.month
+    if (!duration) return "Noma'lum"
+    if (typeof duration === 'string' && duration.toLowerCase().includes('oy')) return duration
+    return `${duration} oy`
+}
+
+const normalizeGroup = (group, index) => ({
+    id: group.id || group._id || index + 1,
+    status: group.status === undefined ? true : Boolean(group.status),
+    name: group.name || group.title || group.group_name || "Noma'lum guruh",
+    course: getName(group.course || group.subject || group.direction, "Noma'lum"),
+    duration: formatDuration(group),
+    time: group.time || group.lesson_time || group.start_time || "Noma'lum",
+    days: formatDays(group.days || group.lesson_days || group.week_days),
+    room: getName(group.room || group.classroom, "Noma'lum"),
+    teacher: getName(group.teacher || group.mentor || group.teachers?.[0], "Noma'lum"),
+    students: getCount(group.students || group.student_count || group.students_count)
+})
+
+const normalizeRoom = (room, index) => ({
+    id: room.id || room._id || index + 1,
+    name: room.name || room.title || `Xona ${index + 1}`,
+    capacity: room.capacity || room.max_student || room.maxStudent || 0
+})
+
+const normalizeCourse = (course, index) => ({
+    id: course.id || course._id || index + 1,
+    name: course.name || course.title || `Kurs ${index + 1}`,
+    durationMonth: course.duration_month || course.durationMonth || course.month || "",
+    price: course.price || 0
+})
+
+const GROUP_ENDPOINTS = [
+    "https://najot-edu.softwareengineer.uz/api/v1/groups/all",
+    "https://najot-edu.softwareengineer.uz/api/v1/students/my/groups"
 ]
 
 const studentsList = [
@@ -44,17 +142,208 @@ const teachersList = [
 ]
 
 export default function Groups() {
+    const navigate = useNavigate()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [activeTab, setActiveTab] = useState("Guruhlar")
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [isStudentModalOpen, setIsStudentModalOpen] = useState(false)
     const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false)
+    const [isRoomModalOpen, setIsRoomModalOpen] = useState(false)
+    const [groups, setGroups] = useState([])
+    const [rooms, setRooms] = useState([])
+    const [courses, setCourses] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState("")
+    const [coursesLoading, setCoursesLoading] = useState(false)
+    const [courseError, setCourseError] = useState("")
+    const [roomsLoading, setRoomsLoading] = useState(false)
+    const [roomError, setRoomError] = useState("")
+    const [roomSaving, setRoomSaving] = useState(false)
     
     const [selectedStudents, setSelectedStudents] = useState([])
     const [selectedTeacher, setSelectedTeacher] = useState("")
+    const [selectedCourseId, setSelectedCourseId] = useState("")
+    const [selectedRoomId, setSelectedRoomId] = useState("")
+    const [roomName, setRoomName] = useState("")
+    const [roomCapacity, setRoomCapacity] = useState("")
+
+    const fetchGroups = async () => {
+        setLoading(true)
+        setError("")
+        const token = localStorage.getItem("token")
+
+        if (!token || token === "undefined" || token === "null") {
+            setLoading(false)
+            setError("Avval tizimga kiring")
+            navigate("/")
+            return
+        }
+
+        try {
+            let response = null
+            let data = null
+
+            for (const endpoint of GROUP_ENDPOINTS) {
+                response = await fetch(endpoint, {
+                    headers: {
+                        "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                    }
+                })
+                data = await response.json()
+                if (response.ok || response.status !== 401) break
+            }
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem("token")
+                    navigate("/")
+                    return
+                }
+                throw new Error(data.message || "Guruhlarni olishda xatolik yuz berdi")
+            }
+
+            const list = findGroupsArray(data)
+            setGroups(list.map(normalizeGroup))
+        } catch (error) {
+            console.error("Error fetching groups:", error)
+            setError(error.message || "Server bilan bog'lanishda xatolik!")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const fetchRooms = async () => {
+        setRoomsLoading(true)
+        setRoomError("")
+        const token = localStorage.getItem("token")
+
+        if (!token || token === "undefined" || token === "null") {
+            setRoomsLoading(false)
+            setRoomError("Avval tizimga kiring")
+            return
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/rooms", {
+                headers: {
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                }
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.message || "Xonalarni olishda xatolik yuz berdi")
+            }
+
+            const list = findRoomsArray(data)
+            setRooms(list.map(normalizeRoom))
+        } catch (error) {
+            console.error("Error fetching rooms:", error)
+            setRoomError(error.message || "Xonalarni yuklashda xatolik!")
+        } finally {
+            setRoomsLoading(false)
+        }
+    }
+
+    const fetchCourses = async () => {
+        setCoursesLoading(true)
+        setCourseError("")
+        const token = localStorage.getItem("token")
+
+        if (!token || token === "undefined" || token === "null") {
+            setCoursesLoading(false)
+            setCourseError("Avval tizimga kiring")
+            return
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/courses", {
+                headers: {
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                }
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.message || "Kurslarni olishda xatolik yuz berdi")
+            }
+
+            const list = findCoursesArray(data)
+            setCourses(list.map(normalizeCourse))
+        } catch (error) {
+            console.error("Error fetching courses:", error)
+            setCourseError(error.message || "Kurslarni yuklashda xatolik!")
+        } finally {
+            setCoursesLoading(false)
+        }
+    }
+
+    const handleSaveRoom = async () => {
+        if (!roomName.trim() || !roomCapacity) {
+            setRoomError("Xona nomi va sig'imini kiriting")
+            return
+        }
+
+        setRoomSaving(true)
+        setRoomError("")
+        const token = localStorage.getItem("token")
+
+        if (!token || token === "undefined" || token === "null") {
+            setRoomSaving(false)
+            setRoomError("Avval tizimga kiring")
+            return
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/rooms", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                },
+                body: JSON.stringify({
+                    name: roomName.trim(),
+                    capacity: Number(roomCapacity)
+                })
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.message || "Xona qo'shishda xatolik yuz berdi")
+            }
+
+            const newRoom = normalizeRoom(data.data || data, rooms.length)
+            setRooms(prev => [...prev, newRoom])
+            setSelectedRoomId(String(newRoom.id))
+            setRoomName("")
+            setRoomCapacity("")
+            setIsRoomModalOpen(false)
+            fetchRooms()
+        } catch (error) {
+            console.error("Error saving room:", error)
+            setRoomError(error.message || "Xona qo'shishda xatolik!")
+        } finally {
+            setRoomSaving(false)
+        }
+    }
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchGroups()
+            fetchCourses()
+            fetchRooms()
+        }, 0)
+        return () => clearTimeout(timer)
+    }, [])
+
+    const totalTeachers = new Set(groups.map(group => group.teacher).filter(teacher => teacher && teacher !== "Noma'lum")).size
+    const totalStudents = groups.reduce((sum, group) => sum + group.students, 0)
 
     return (
-        <div className="max-w-[1600px] m-auto bg-gray-50 min-h-screen">
+        <div className="w-full bg-gray-50 min-h-screen">
             <div className="flex">
                 <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
                 <div className="w-full min-h-screen flex flex-col px-[20px] md:px-[40px] pb-[40px]">
@@ -102,7 +391,7 @@ export default function Groups() {
                                 <i className="fa-solid fa-users text-[14px]"></i>
                                 <span className="text-[13px] font-[500]">Jami guruhlar</span>
                             </div>
-                            <h3 className="text-[32px] font-[700]">2</h3>
+                            <h3 className="text-[32px] font-[700]">{groups.length}</h3>
                             <i className="fa-solid fa-ellipsis-vertical absolute top-[24px] right-[24px] text-gray-300 cursor-pointer"></i>
                         </div>
                         <div className="bg-white p-[24px] rounded-[16px] border border-gray-100 shadow-sm relative">
@@ -110,7 +399,7 @@ export default function Groups() {
                                 <i className="fa-solid fa-user-group text-[14px]"></i>
                                 <span className="text-[13px] font-[500]">O'qituvchilar</span>
                             </div>
-                            <h3 className="text-[32px] font-[700]">0</h3>
+                            <h3 className="text-[32px] font-[700]">{totalTeachers}</h3>
                             <i className="fa-solid fa-ellipsis-vertical absolute top-[24px] right-[24px] text-gray-300 cursor-pointer"></i>
                         </div>
                         <div className="bg-white p-[24px] rounded-[16px] border border-gray-100 shadow-sm relative">
@@ -119,7 +408,7 @@ export default function Groups() {
                                 <span className="text-[13px] font-[500]">O'quvchilar</span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <h3 className="text-[32px] font-[700]">0</h3>
+                                <h3 className="text-[32px] font-[700]">{totalStudents}</h3>
                                 <div className="flex -space-x-2">
                                     <div className="w-[24px] h-[24px] rounded-full bg-black text-white text-[10px] flex items-center justify-center border-2 border-white">I</div>
                                     <div className="w-[24px] h-[24px] rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center border-2 border-white">M</div>
@@ -144,11 +433,39 @@ export default function Groups() {
                                         <th className="py-[16px] px-[24px]">Xona</th>
                                         <th className="py-[16px] px-[24px]">O'qituvchi</th>
                                         <th className="py-[16px] px-[24px] text-center">Talabalar</th>
-                                        <th className="py-[16px] px-[24px] text-right"><i className="fa-solid fa-rotate-right cursor-pointer hover:text-purple-600"></i></th>
+                                        <th className="py-[16px] px-[24px] text-right">
+                                            <button onClick={fetchGroups} className="text-gray-400 hover:text-purple-600" disabled={loading}>
+                                                <i className={`fa-solid fa-rotate-right cursor-pointer ${loading ? 'animate-spin' : ''}`}></i>
+                                            </button>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[14px]">
-                                    {groupsData.map((group) => (
+                                    {loading && (
+                                        <tr>
+                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
+                                                Guruhlar yuklanmoqda...
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {!loading && error && (
+                                        <tr>
+                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-red-500 font-[600]">
+                                                {error}
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {!loading && !error && groups.length === 0 && (
+                                        <tr>
+                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
+                                                Guruhlar topilmadi
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {!loading && !error && groups.map((group) => (
                                         <tr key={group.id} className="border-t border-gray-50 hover:bg-gray-50/30 transition-colors">
                                             <td className="py-[16px] px-[24px]">
                                                 <div className="flex items-center gap-2">
@@ -224,26 +541,55 @@ export default function Groups() {
                             <div>
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Kurs <span className="text-red-500">*</span></label>
                                 <div className="relative">
-                                    <select className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 appearance-none bg-white font-[500]">
-                                        <option value="">Tanlang</option>
-                                        <option value="Backend">Backend</option>
-                                        <option value="Frontend">Frontend</option>
+                                    <select
+                                        value={selectedCourseId}
+                                        onChange={(e) => setSelectedCourseId(e.target.value)}
+                                        className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 appearance-none bg-white font-[500]"
+                                        disabled={coursesLoading}
+                                    >
+                                        <option value="">{coursesLoading ? "Kurslar yuklanmoqda..." : "Tanlang"}</option>
+                                        {courses.map(course => (
+                                            <option key={course.id} value={course.id}>
+                                                {course.name}{course.durationMonth ? ` (${course.durationMonth} oy)` : ""}
+                                            </option>
+                                        ))}
                                     </select>
                                     <i className="fa-solid fa-chevron-down absolute right-[14px] top-[14px] text-gray-400 text-[12px]"></i>
                                 </div>
+                                {courseError && (
+                                    <p className="text-[12px] text-red-500 font-[500] mt-[8px]">{courseError}</p>
+                                )}
                             </div>
 
                             {/* Xona */}
                             <div>
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Xona <span className="text-red-500">*</span></label>
-                                <div className="relative">
-                                    <select className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 appearance-none bg-white font-[500]">
-                                        <option value="">Tanlang</option>
-                                        <option value="Autodesk">Autodesk</option>
-                                        <option value="Room 101">Room 101</option>
+                                <div className="relative mb-[10px]">
+                                    <select
+                                        value={selectedRoomId}
+                                        onChange={(e) => setSelectedRoomId(e.target.value)}
+                                        className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 appearance-none bg-white font-[500]"
+                                        disabled={roomsLoading}
+                                    >
+                                        <option value="">{roomsLoading ? "Xonalar yuklanmoqda..." : "Tanlang"}</option>
+                                        {rooms.map(room => (
+                                            <option key={room.id} value={room.id}>
+                                                {room.name}{room.capacity ? ` (${room.capacity} o'rin)` : ""}
+                                            </option>
+                                        ))}
                                     </select>
                                     <i className="fa-solid fa-chevron-down absolute right-[14px] top-[14px] text-gray-400 text-[12px]"></i>
                                 </div>
+                                {roomError && (
+                                    <p className="text-[12px] text-red-500 font-[500] mb-[10px]">{roomError}</p>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRoomModalOpen(true)}
+                                    className="w-full py-[10px] border-2 border-dashed border-gray-200 rounded-[12px] flex items-center justify-center gap-[8px] text-purple-600 font-[600] hover:bg-purple-50 transition-colors"
+                                >
+                                    <i className="fa-solid fa-plus"></i> Yangi xona qo'shish
+                                </button>
                             </div>
 
                             {/* Dars kunlari */}
@@ -333,6 +679,67 @@ export default function Groups() {
                         <div className="p-[24px] border-t bg-white flex gap-[12px]">
                             <button className="flex-1 py-[12px] text-gray-700 font-[600] border border-gray-200 rounded-[12px] hover:bg-gray-50" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
                             <button className="flex-1 py-[12px] bg-purple-600 text-white font-[600] rounded-[12px] hover:bg-purple-700" onClick={() => setIsDrawerOpen(false)}>Saqlash</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Xona qo'shish Modal */}
+            {isRoomModalOpen && (
+                <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
+                    <div className="bg-white w-full max-w-[420px] rounded-[24px] shadow-2xl overflow-hidden animate-fade-in">
+                        <div className="p-[24px] relative">
+                            <h3 className="text-[18px] font-[700] text-gray-800 mb-1">Yangi xona qo'shish</h3>
+                            <p className="text-[13px] text-gray-500 mb-[20px]">Xona nomi va sig'imini kiriting</p>
+                            <i
+                                className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[18px] hover:text-red-500"
+                                onClick={() => setIsRoomModalOpen(false)}
+                            ></i>
+
+                            <div className="space-y-[16px] mb-[20px]">
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Xona nomi</label>
+                                    <input
+                                        type="text"
+                                        value={roomName}
+                                        onChange={(e) => setRoomName(e.target.value)}
+                                        placeholder="Masalan: Autodesk"
+                                        className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Sig'imi</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={roomCapacity}
+                                        onChange={(e) => setRoomCapacity(e.target.value)}
+                                        placeholder="Masalan: 20"
+                                        className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
+                                    />
+                                </div>
+                            </div>
+
+                            {roomError && (
+                                <p className="text-[13px] text-red-500 font-[500] mb-[16px]">{roomError}</p>
+                            )}
+
+                            <div className="flex justify-end gap-[12px]">
+                                <button
+                                    className="px-[20px] py-[10px] text-gray-500 font-[600] hover:text-gray-800"
+                                    onClick={() => setIsRoomModalOpen(false)}
+                                >
+                                    Bekor qilish
+                                </button>
+                                <button
+                                    className={`px-[30px] py-[10px] font-[600] rounded-[12px] transition-colors shadow-md ${roomSaving ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
+                                    onClick={handleSaveRoom}
+                                    disabled={roomSaving}
+                                >
+                                    {roomSaving ? "Saqlanmoqda..." : "Saqlash"}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

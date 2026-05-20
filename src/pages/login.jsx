@@ -4,6 +4,20 @@ import { useState } from "react"
 import study from "../assets/study.svg"
 import tatu from "../assets/tatu.png"
 
+const findToken = (value) => {
+    if (!value || typeof value !== 'object') return ""
+
+    const token = value.token || value.access_token || value.accessToken
+    if (typeof token === 'string') return token.replace(/^Bearer\s+/i, '')
+
+    for (const key of Object.keys(value)) {
+        const nestedToken = findToken(value[key])
+        if (nestedToken) return nestedToken
+    }
+
+    return ""
+}
+
 export default function Login() {
     const navigate = useNavigate()
     const [phone, setPhone] = useState("")
@@ -27,8 +41,12 @@ export default function Login() {
             console.log("Server javobi:", data)
 
             if (response.ok) {
-                const token = data.token || data.access_token || data.accessToken || data.data?.token
+                const token = findToken(data)
                 console.log("Token:", token)
+                if (!token) {
+                    setError("Token topilmadi. Iltimos, qayta urinib ko'ring!")
+                    return
+                }
                 localStorage.setItem("token", token)
                 navigate("/dashboard")
             } else {

@@ -23,7 +23,13 @@ const settingsSubmenu = [
 export default function Sidebar({ isOpen, onClose }) {
     const location = useLocation()
     const [isSubmenuOpen, setIsSubmenuOpen] = useState(false)
-    const [isCollapsed, setIsCollapsed] = useState(false)
+    const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem("sidebar-collapsed") === "true")
+
+    const toggleCollapse = () => {
+        const newValue = !isCollapsed
+        setIsCollapsed(newValue)
+        localStorage.setItem("sidebar-collapsed", String(newValue))
+    }
 
     const handleBoshqarishClick = (e) => {
         e.preventDefault()
@@ -45,7 +51,6 @@ export default function Sidebar({ isOpen, onClose }) {
                 />
             )}
 
-            {/* Mobile Sidebar Overlay (Backdrop) */}
             {isOpen && !isSubmenuOpen && (
                 <div 
                     className="fixed inset-0 bg-black/40 z-[100] md:hidden transition-opacity duration-300"
@@ -58,15 +63,13 @@ export default function Sidebar({ isOpen, onClose }) {
                 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 ${isCollapsed ? 'w-[80px]' : 'w-[280px]'}
             `}>
-                {/* Minimalist Toggle Button */}
                 <button 
-                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    onClick={toggleCollapse}
                     className="hidden md:flex absolute -right-[12px] top-[25px] w-[24px] h-[24px] bg-purple-600 rounded-full items-center justify-center text-white shadow-md z-[105]"
                 >
                     <i className={`fa-solid fa-chevron-${isCollapsed ? 'right' : 'left'} text-[10px]`}></i>
                 </button>
 
-                {/* Main Sidebar */}
                 <div className={`h-full p-[20px] flex flex-col justify-between border-r border-gray-100 bg-white z-[102] w-full overflow-hidden`}>
                     <ul className="list-none p-0 m-0">
                         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
@@ -109,27 +112,20 @@ export default function Sidebar({ isOpen, onClose }) {
                         ))}
                     </ul>
                     {!isCollapsed && (
-                        <div className="w-full rounded-[20px] p-[15px] bg-gray-50 border border-gray-100 mt-4">
-                            <div className="flex items-center gap-[10px]">
-                                <div className="w-[40px] h-[40px] bg-purple-100 rounded-[10px] flex items-center justify-center">
-                                    <i className="fa-solid fa-crown text-purple-600"></i>
+                        <div className="w-full rounded-[16px] p-[16px] subscription-card border border-gray-200 dark:border-zinc-800 mt-4">
+                            <div className="flex items-center gap-[12px] mb-[12px]">
+                                <div className="text-[26px] flex items-center justify-center animate-bounce">
+                                    🔔
                                 </div>
-                                <div>
-                                    <h4 className="text-[14px] font-[600] m-0">Obuna</h4>
-                                    <h5 className="text-red-400 text-[12px] font-[500] m-0">Muddati tugagan</h5>
+                                <div className="flex flex-col">
+                                    <span className="text-[15px] font-[700] text-black leading-tight">Obuna</span>
+                                    <span className="text-[#ef4444] text-[13px] font-[500] mt-0.5 leading-tight">Obunangiz tugagan</span>
                                 </div>
                             </div>
-                            <Button variant="contained" fullWidth sx={{
-                                bgcolor: '#ef4444',
-                                '&:hover': { bgcolor: '#dc2626' },
-                                marginTop: 2,
-                                fontSize: 12,
-                                textTransform: 'none',
-                                borderRadius: '10px',
-                                gap: 1
-                            }}>
-                                <i className="fa-solid fa-bolt"></i> Yangilash
-                            </Button>
+                            <button className="w-full py-[10px] bg-[#ef4444] hover:bg-[#dc2626] active:scale-95 text-white font-[600] text-[14px] rounded-[10px] shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer">
+                                <i className="fa-solid fa-arrow-rotate-right text-[13px]"></i>
+                                Obunani yangilash
+                            </button>
                         </div>
                     )}
                 </div>

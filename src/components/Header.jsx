@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { IconButton, Tooltip, Avatar, Accordion, AccordionSummary, AccordionDetails, Switch } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -49,6 +49,44 @@ const MaterialUISwitch = styled(Switch)(({ theme }) => ({
 }));
 
 export default function Header({ onMenuClick }) {
+    const [selectedLanguage, setSelectedLanguage] = useState("O'zbekcha");
+    const [isLangOpen, setIsLangOpen] = useState(false);
+    const dropdownRef = useRef(null);
+    const [isDark, setIsDark] = useState(() => localStorage.getItem("theme") === "dark");
+
+    useEffect(() => {
+        if (isDark) {
+            document.documentElement.classList.add("dark");
+        } else {
+            document.documentElement.classList.remove("dark");
+        }
+    }, [isDark]);
+
+    const toggleDarkMode = () => {
+        const newValue = !isDark;
+        setIsDark(newValue);
+        localStorage.setItem("theme", newValue ? "dark" : "light");
+    };
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsLangOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    const languages = ["O'zbekcha", "Русский", "English"];
+
+    const handleLangSelect = (lang) => {
+        setSelectedLanguage(lang);
+        setIsLangOpen(false);
+    };
+
     return (
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center py-[20px] gap-4">
             {/* Left Side: Menu Toggle (Mobile), Search, Calendar, Plus */}
@@ -71,7 +109,7 @@ export default function Header({ onMenuClick }) {
                         <span className="font-[600] text-[15px]">Qo'shish</span>
                         <i className="fa-solid fa-chevron-down text-[12px] ml-1 opacity-80"></i>
                     </button>
-
+                    
                     <div className="relative w-[280px]">
                         <i className="fa-solid fa-magnifying-glass absolute left-[15px] top-[13px] text-gray-300 text-[14px]"></i>
                         <input 
@@ -91,9 +129,28 @@ export default function Header({ onMenuClick }) {
 
             {/* Right Side: Language, Notification, Theme, Avatar */}
             <div className="flex items-center gap-[15px] ml-auto">
-                <div className="flex items-center gap-[10px] px-[16px] py-[8px] bg-white border border-gray-100 rounded-[12px] shadow-sm cursor-pointer hover:bg-gray-50 transition-colors">
-                    <span className="text-[14px] font-[500] text-gray-700">O'zbekcha</span>
-                    <i className="fa-solid fa-chevron-down text-[12px] text-gray-400"></i>
+                <div className="relative" ref={dropdownRef}>
+                    <div 
+                        onClick={() => setIsLangOpen(!isLangOpen)}
+                        className="flex items-center gap-[10px] px-[16px] py-[8px] bg-white border border-gray-100 rounded-[12px] shadow-sm cursor-pointer hover:bg-gray-50 transition-colors select-none"
+                    >
+                        <span className="text-[14px] font-[500] text-gray-700">{selectedLanguage}</span>
+                        <i className={`fa-solid fa-chevron-down text-[12px] text-gray-400 transition-transform duration-200 ${isLangOpen ? 'rotate-180' : ''}`}></i>
+                    </div>
+
+                    {isLangOpen && (
+                        <div className="absolute right-0 mt-2 w-[140px] bg-white border border-gray-100 rounded-[12px] shadow-lg py-1 z-[999] animate-fade-in">
+                            {languages.map((lang) => (
+                                <div 
+                                    key={lang}
+                                    onClick={() => handleLangSelect(lang)}
+                                    className={`px-[16px] py-[8px] text-[14px] text-gray-700 hover:bg-purple-50 hover:text-purple-600 cursor-pointer transition-colors ${selectedLanguage === lang ? 'bg-purple-50/50 text-purple-600 font-[600]' : ''}`}
+                                >
+                                    {lang}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 
                 <div className="flex items-center gap-4">
@@ -102,14 +159,23 @@ export default function Header({ onMenuClick }) {
                             <i className="fa-regular fa-bell text-[20px]"></i>
                         </IconButton>
                     </Tooltip>
-                    <IconButton sx={{ color: '#4b5563', p: 0.5 }}>
-                        <i className="fa-regular fa-moon text-[20px]"></i>
+                     <IconButton sx={{ color: '#4b5563', p: 0.5 }} onClick={toggleDarkMode}>
+                        <i className={`fa-regular fa-${isDark ? 'sun' : 'moon'} text-[20px] ${isDark ? 'text-amber-500' : ''}`}></i>
                     </IconButton>
                     <div className="w-[42px] h-[42px] bg-[#7c3aed] rounded-full flex items-center justify-center text-white font-[600] text-[18px] shadow-sm cursor-pointer hover:bg-purple-700 transition-colors">
                         A
                     </div>
                 </div>
             </div>
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes fade-in {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                    animation: fade-in 0.15s ease-out;
+                }
+            `}} />
         </div>
     );
 }

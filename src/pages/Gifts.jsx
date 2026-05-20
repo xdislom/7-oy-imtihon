@@ -5,7 +5,7 @@ import Header from "../components/Header"
 export default function Gifts() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     return (
-        <div className="max-w-[1600px] m-auto bg-gray-50 min-h-screen">
+        <div className="w-full bg-gray-50 min-h-screen">
             <div className="flex">
                 <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
                 <div className="w-full min-h-screen px-[20px] md:px-[40px] pb-[40px]">

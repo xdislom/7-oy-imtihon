@@ -237,7 +237,7 @@ export default function Settings() {
     const isWhiteBackground = activeTab === "Kurslar" || activeTab === "Xonalar"
 
     return (
-        <div className="max-w-[1600px] m-auto bg-gray-50 min-h-screen">
+        <div className="w-full bg-gray-50 min-h-screen">
             <div className="flex">
                 <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
                 <div className="w-full min-h-screen flex flex-col">
