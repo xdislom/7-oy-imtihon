@@ -104,10 +104,13 @@ const normalizeGroup = (group, index) => ({
     course: getName(group.course || group.subject || group.direction, "Noma'lum"),
     duration: formatDuration(group),
     time: group.time || group.lesson_time || group.start_time || "Noma'lum",
-    days: formatDays(group.days || group.lesson_days || group.week_days),
-    room: getName(group.room || group.classroom, "Noma'lum"),
+    days: formatDays(group.days || group.lesson_days || group.week_days || group.week_day),
+    room: getName(group.room || group.classroom || group.room_name || group.roomName, "Noma'lum"),
     teacher: getName(group.teacher || group.mentor || group.teachers?.[0], "Noma'lum"),
-    students: getCount(group.students || group.student_count || group.students_count)
+    students: getCount(group.students || group.student_count || group.students_count),
+    maxStudent: group.max_student || group.maxStudent || group.room?.capacity || group.capacity || 0,
+    startDate: group.start_date || group.startDate || group.begin_date || group.beginDate,
+    endDate: group.end_date || group.endDate || group.finish_date || group.finishDate
 })
 
 const normalizeRoom = (room, index) => ({
@@ -466,10 +469,18 @@ export default function Groups() {
                                     )}
 
                                     {!loading && !error && groups.map((group) => (
-                                        <tr key={group.id} className="border-t border-gray-50 hover:bg-gray-50/30 transition-colors">
+                                        <tr
+                                            key={group.id}
+                                            onClick={() => {
+                                                sessionStorage.setItem("selectedGroup", JSON.stringify(group))
+                                                navigate(`/classes/groups/${group.id}`)
+                                            }}
+                                            className="border-t border-gray-50 hover:bg-gray-50/60 transition-colors cursor-pointer"
+                                        >
                                             <td className="py-[16px] px-[24px]">
                                                 <div className="flex items-center gap-2">
                                                     <Switch 
+                                                        onClick={(e) => e.stopPropagation()}
                                                         defaultChecked={group.status} 
                                                         size="small" 
                                                         sx={{ 
@@ -496,7 +507,7 @@ export default function Groups() {
                                             <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{group.room}</td>
                                             <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{group.teacher}</td>
                                             <td className="py-[16px] px-[24px] text-center font-[700] text-gray-800">{group.students}</td>
-                                            <td className="py-[16px] px-[24px] text-right">
+                                            <td className="py-[16px] px-[24px] text-right" onClick={(e) => e.stopPropagation()}>
                                                 <i className="fa-solid fa-ellipsis-vertical text-gray-300 cursor-pointer hover:text-gray-600"></i>
                                             </td>
                                         </tr>
