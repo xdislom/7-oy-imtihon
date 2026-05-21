@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Sidebar from "../components/Sidebar"
@@ -266,14 +267,68 @@ export default function GroupDetail() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [group, setGroup] = useState(null)
     const [schedules, setSchedules] = useState([])
+    const [lessons, setLessons] = useState([])
     const [date, setDate] = useState("2026-05-12")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [isMentorsOpen, setIsMentorsOpen] = useState(true)
     const [isParamsOpen, setIsParamsOpen] = useState(true)
     const [showAllDates, setShowAllDates] = useState(false)
+    const [activeTab, setActiveTab] = useState("info")
+    const [activeLessonsTab, setActiveLessonsTab] = useState("homework")
+    const [isMentorsModalOpen, setIsMentorsModalOpen] = useState(false)
 
     const token = localStorage.getItem("token")
+
+    const mockLessons = [
+        {
+            id: 1,
+            title: "Html asoslari",
+            created_at: "2026-05-13T10:00:00",
+            end_date: "2026-05-14T06:00:00",
+            lesson_date: "2026-05-12T00:00:00",
+            submitted: 5,
+            late: 0,
+            completed: 0
+        },
+        {
+            id: 2,
+            title: "Kirish",
+            created_at: "2026-05-13T11:52:00",
+            end_date: "2026-05-14T07:52:00",
+            lesson_date: "2026-05-09T00:00:00",
+            submitted: 5,
+            late: 0,
+            completed: 0
+        },
+        {
+            id: 3,
+            title: "Nodejs",
+            created_at: "2026-05-14T09:47:00",
+            end_date: "2026-05-15T05:47:00",
+            lesson_date: "2026-05-14T00:00:00",
+            submitted: 5,
+            late: 0,
+            completed: 3
+        },
+        {
+            id: 4,
+            title: "takroriyash",
+            created_at: "2026-05-19T16:22:00",
+            end_date: "2026-05-20T12:22:00",
+            lesson_date: "2026-05-19T00:00:00",
+            submitted: 5,
+            late: 0,
+            completed: 0
+        }
+    ]
+
+    const mockTeachers = [
+        { id: 1, name: "Ahmadjon Rixsiboyev", role: "Teacher" },
+        { id: 2, name: "Ali", role: "Teacher" },
+        { id: 3, name: "Primov Shoxzod", role: "Teacher" },
+        { id: 4, name: "Axmadjon", role: "Teacher" }
+    ]
 
     const fetchGroupInfo = async () => {
         if (!token || token === "undefined" || token === "null") {
@@ -289,13 +344,15 @@ export default function GroupDetail() {
                 "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
             }
 
-            const [groupResponse, schedulesResponse] = await Promise.all([
+            const [groupResponse, schedulesResponse, homeworkResponse] = await Promise.all([
                 fetch(`${API_URL}/groups/${groupId}`, { headers }),
-                fetch(`${API_URL}/groups/${groupId}/schedules`, { headers })
+                fetch(`${API_URL}/groups/${groupId}/schedules`, { headers }),
+                fetch(`${API_URL}/homework/${groupId}`, { headers }).catch(() => null)
             ])
 
             const groupData = await groupResponse.json()
             const schedulesData = await schedulesResponse.json()
+            const homeworkData = homeworkResponse ? await homeworkResponse.json() : null
 
             if (groupResponse.status === 401 || schedulesResponse.status === 401) {
                 localStorage.removeItem("token")
@@ -315,9 +372,15 @@ export default function GroupDetail() {
             const fallbackGroup = savedGroup && String(savedGroup.id) === String(groupId) ? normalizeGroup(savedGroup) : null
             setGroup(mergeGroupData(normalizeGroup(findObject(groupData)), fallbackGroup))
             setSchedules(normalizeLessons(schedulesData))
+            if (homeworkData && findArray(homeworkData).length > 0) {
+                setLessons(findArray(homeworkData))
+            } else {
+                setLessons(mockLessons)
+            }
         } catch (error) {
             console.error("Error fetching group detail:", error)
             setError(error.message || "Server bilan bog'lanishda xatolik!")
+            setLessons(mockLessons)
         } finally {
             setLoading(false)
         }
@@ -347,13 +410,21 @@ export default function GroupDetail() {
     }, [group, schedules])
 
     const mentors = useMemo(() => {
-        if (group?.teachers?.length) return [group.teachers[0]]
-        return ["Noma'lum"]
+        if (group?.teachers?.length) {
+            return group.teachers.slice(0, 4).map(teacher => ({
+                name: getName(teacher),
+                full_name: teacher.full_name || teacher.name,
+                avatar: teacher.avatar || teacher.photo,
+                role: "Teacher",
+                ...teacher
+            }))
+        }
+        return mockTeachers.slice(0, 4)
     }, [group])
 
     const scheduleDates = useMemo(() => getScheduleDates(schedules, group), [schedules, group])
     const scheduleMonths = useMemo(() => getScheduleMonths(schedules, group), [schedules, group])
-
+    console.log( group)
     return (
         <div className="w-full bg-gray-50 min-h-screen">
             <div className="flex">
@@ -369,7 +440,7 @@ export default function GroupDetail() {
                             >
                                 <i className="fa-solid fa-chevron-left"></i>
                             </button>
-                            <h2 className="text-[28px] font-[800] text-gray-900">{group?.name || "Guruh"}</h2>
+                            <h2 className="text-[28px] font-[800] text-gray-900">{group?.course || "Guruh"}</h2>
                             <span className="px-[12px] py-[5px] rounded-[6px] bg-green-50 border border-green-100 text-green-600 text-[13px] font-[700]">
                                 {group?.status || "Aktiv"}
                             </span>
@@ -382,9 +453,24 @@ export default function GroupDetail() {
 
                     <div className="flex items-center justify-between border-b border-gray-200 mb-[24px]">
                         <div className="flex gap-[28px]">
-                            <button className="py-[12px] text-purple-600 font-[800] border-b-[3px] border-purple-600">Ma'lumotlar</button>
-                            <button className="py-[12px] text-gray-500 font-[700]">Guruh darsliklari</button>
-                            <button className="py-[12px] text-gray-500 font-[700]">Akademik davomati</button>
+                            <button 
+                                onClick={() => setActiveTab("info")}
+                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "info" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
+                            >
+                                Ma'lumotlar
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab("lessons")}
+                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "lessons" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
+                            >
+                                Guruh darsliklari
+                            </button>
+                            <button 
+                                onClick={() => setActiveTab("attendance")}
+                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "attendance" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
+                            >
+                                Akademik davomati
+                            </button>
                         </div>
                         <input
                             type="date"
@@ -406,7 +492,7 @@ export default function GroupDetail() {
                         </div>
                     )}
 
-                    {!loading && !error && (
+                    {!loading && !error && activeTab === "info" && (
                         <>
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-[0px] items-start mb-[32px]">
                                 <div className={`${isMentorsOpen ? 'bg-white' : 'bg-gray-100'} border border-gray-200 xl:rounded-l-[10px] overflow-hidden transition-colors`}>
@@ -419,10 +505,17 @@ export default function GroupDetail() {
                                         <i className={`fa-solid fa-chevron-${isMentorsOpen ? 'up' : 'down'}`}></i>
                                     </button>
                                     {isMentorsOpen && (
-                                        <div className="p-[28px]">
+                                        <div className="p-[28px] space-y-[20px]">
                                             {mentors.map((teacher, index) => (
-                                                <div key={index} className="px-[16px] py-[12px] bg-gray-50 border border-gray-100 rounded-[10px] text-gray-900 font-[800]">
-                                                    {getName(teacher)}
+                                                <div key={index} className="flex items-center gap-[16px] cursor-pointer hover:bg-gray-50 p-[8px] rounded-[8px] transition-colors" onClick={() => setIsMentorsModalOpen(true)}>
+                                                    <div className="w-[48px] h-[48px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-[600] text-[18px] flex-shrink-0 overflow-hidden">
+                                                        {teacher?.avatar ? (
+                                                            <img src={teacher.avatar} alt={teacher.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span>{teacher.name.charAt(0)}</span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-gray-900 font-[700] text-[16px]">{teacher.name}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -559,6 +652,185 @@ export default function GroupDetail() {
                                 )}
                             </div>
                         </>
+                    )}
+
+                    {!loading && !error && activeTab === "lessons" && (
+                        <div className="bg-white border border-gray-200 rounded-[14px] overflow-hidden">
+                            <div className="px-[32px] py-[28px]">
+                                <div className="flex items-center justify-between mb-[24px]">
+                                    <h3 className="text-[20px] font-[800] text-gray-900">Guruh darsliklari</h3>
+                                    <button className="px-[20px] py-[10px] bg-teal-500 hover:bg-teal-600 text-white font-[700] rounded-[8px] transition-colors">
+                                        Qo'shish
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-[8px] mb-[28px] overflow-x-auto">
+                                    <button
+                                        onClick={() => setActiveLessonsTab("homework")}
+                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${
+                                            activeLessonsTab === "homework"
+                                                ? 'bg-white border border-gray-200 text-gray-900'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        Uyga vazifa
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveLessonsTab("videos")}
+                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${
+                                            activeLessonsTab === "videos"
+                                                ? 'bg-white border border-gray-200 text-gray-900'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        Videolar
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveLessonsTab("exams")}
+                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${
+                                            activeLessonsTab === "exams"
+                                                ? 'bg-white border border-gray-200 text-gray-900'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        Imtihonlar
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveLessonsTab("journal")}
+                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${
+                                            activeLessonsTab === "journal"
+                                                ? 'bg-white border border-gray-200 text-gray-900'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        Jurnal
+                                    </button>
+                                </div>
+
+                                {activeLessonsTab === "homework" && (
+                                    <>
+                                        {lessons.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full">
+                                                    <thead>
+                                                        <tr className="border-b border-gray-200 bg-gray-50">
+                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">#</th>
+                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">Mavzu</th>
+                                                            <th className="px-[16px] py-[14px] text-left text-yellow-500 font-[600] text-[13px]">
+                                                                <i className="fa-solid fa-clock"></i>
+                                                            </th>
+                                                            <th className="px-[16px] py-[14px] text-left text-teal-500 font-[600] text-[13px]">
+                                                                <i className="fa-solid fa-check"></i>
+                                                            </th>
+                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">Berilan vaqt</th>
+                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">Tugash vaqti</th>
+                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">Dars sanasi</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {lessons.map((lesson, index) => (
+                                                            <tr key={lesson.id || index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                                                <td className="px-[16px] py-[16px] text-left text-gray-900 font-[600] text-[14px]">{index + 1}</td>
+                                                                <td className="px-[16px] py-[16px] text-left text-gray-900 font-[600] text-[14px]">
+                                                                    {getName(lesson.title || lesson.name || lesson.subject || lesson.lesson_name || lesson.lessonName, "Dars nomi")}
+                                                                </td>
+                                                                <td className="px-[16px] py-[16px] text-left">
+                                                                    <span className="text-gray-900 font-[600] text-[14px]">{lesson.submitted || 5}</span>
+                                                                </td>
+                                                                <td className="px-[16px] py-[16px] text-left">
+                                                                    <span className="text-gray-900 font-[600] text-[14px]">{lesson.late || 0}</span>
+                                                                </td>
+                                                                <td className="px-[16px] py-[16px] text-left">
+                                                                    <span className="text-gray-900 font-[600] text-[14px]">{lesson.completed || 0}</span>
+                                                                </td>
+                                                                <td className="px-[16px] py-[16px] text-left text-gray-600 font-[600] text-[14px]">
+                                                                    {formatDate(lesson.created_at || lesson.createdAt || lesson.given_date || lesson.givenDate || lesson.start_date)}
+                                                                </td>
+                                                                <td className="px-[16px] py-[16px] text-left text-gray-600 font-[600] text-[14px]">
+                                                                    {formatDate(lesson.end_date || lesson.endDate || lesson.due_date || lesson.dueDate || lesson.deadline)}
+                                                                </td>
+                                                                <td className="px-[16px] py-[16px] text-left text-gray-600 font-[600] text-[14px]">
+                                                                    {formatDate(lesson.lesson_date || lesson.lessonDate || lesson.date)}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="border border-dashed border-gray-200 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
+                                                Uyga vazifa topilmadi
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                {activeLessonsTab === "videos" && (
+                                    <div className="border border-dashed border-gray-200 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
+                                        Videolar topilmadi
+                                    </div>
+                                )}
+
+                                {activeLessonsTab === "exams" && (
+                                    <div className="border border-dashed border-gray-200 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
+                                        Imtihonlar topilmadi
+                                    </div>
+                                )}
+
+                                {activeLessonsTab === "journal" && (
+                                    <div className="border border-dashed border-gray-200 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
+                                        Jurnal topilmadi
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {!loading && !error && activeTab === "attendance" && (
+                        <div className="bg-white border border-gray-200 rounded-[14px] px-[32px] py-[34px]">
+                            <h3 className="text-[20px] font-[800] text-gray-900 mb-[28px]">Akademik davomati</h3>
+                            <div className="border border-dashed border-gray-200 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
+                                Akademik davomati ma'lumotlari topilmadi
+                            </div>
+                        </div>
+                    )}
+
+                    {isMentorsModalOpen && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-[14px] w-full max-w-[600px] mx-[20px] overflow-hidden shadow-lg max-h-[80vh] flex flex-col">
+                                <div className="bg-blue-500 text-white px-[32px] py-[20px] flex items-center justify-between flex-shrink-0">
+                                    <h3 className="text-[18px] font-[800]">Guruh mentorlari</h3>
+                                    <button
+                                        onClick={() => setIsMentorsModalOpen(false)}
+                                        className="w-[32px] h-[32px] flex items-center justify-center hover:bg-blue-600 rounded-[6px] transition-colors"
+                                    >
+                                        <i className="fa-solid fa-xmark text-[20px]"></i>
+                                    </button>
+                                </div>
+
+                                <div className="overflow-y-auto flex-1 p-[32px]">
+                                    <div className="grid grid-cols-2 gap-[28px]">
+                                        {mentors.map((teacher, index) => (
+                                            <div key={index} className="flex flex-col items-center gap-[12px] p-[12px] rounded-[12px] hover:bg-gray-50 transition-colors">
+                                                <div className="w-[100px] h-[100px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[32px] font-[600] overflow-hidden flex-shrink-0">
+                                                    {teacher?.avatar ? (
+                                                        <img src={teacher.avatar} alt={teacher.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span>{teacher.name.charAt(0).toUpperCase()}</span>
+                                                    )}
+                                                </div>
+                                                <div className="text-center">
+                                                    <span className="block text-[12px] font-[600] text-teal-500 mb-[4px]">{teacher.role || "Teacher"}</span>
+                                                    <h4 className="text-[15px] font-[800] text-gray-900 line-clamp-2">
+                                                        {teacher.name}
+                                                    </h4>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>

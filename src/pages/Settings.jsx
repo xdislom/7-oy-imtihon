@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useSearchParams } from "react-router-dom"
 import Sidebar from "../components/Sidebar"
 import Header from "../components/Header"
@@ -18,35 +18,66 @@ const cardColors = [
     "bg-pink-50 border-pink-200",
 ]
 
-const courses = [
-    { id: 1, title: "Human Resources Manager", desc: "A little about the company and the team that you'll be working with. A li...", duration: "90 min", period: "3 oy", price: "1 000 000 mln", color: cardColors[0] },
-    { id: 2, title: "Human Resources Manager", desc: "A little about the company and the team that you'll be working with. A li...", duration: "90 min", period: "3 oy", price: "1 000 000 mln", color: cardColors[1] },
-    { id: 3, title: "Human Resources Manager", desc: "A little about the company and the team that you'll be working with. A li...", duration: "90 min", period: "3 oy", price: "1 000 000 mln", color: cardColors[2] },
-    { id: 4, title: "Human Resources Manager", desc: "A little about the company and the team that you'll be working with. A li...", duration: "90 min", period: "3 oy", price: "1 000 000 mln", color: cardColors[3] },
-    { id: 5, title: "Human Resources Manager", desc: "A little about the company and the team that you'll be working with. A li...", duration: "90 min", period: "3 oy", price: "1 000 000 mln", color: cardColors[4] },
-    { id: 6, title: "Human Resources Manager", desc: "A little about the company and the team that you'll be working with. A li...", duration: "90 min", period: "3 oy", price: "1 000 000 mln", color: cardColors[5] },
-]
 
-const rooms = [
-    { id: 1, name: "genious room", capacity: 15 },
-    { id: 2, name: "Impact room", capacity: 12 },
-    { id: 3, name: "1A", capacity: 25 },
-    { id: 4, name: "205-xona", capacity: 32 },
-    { id: 5, name: "16-xona", capacity: 18 },
-    { id: 6, name: "5 xona", capacity: 30 },
-    { id: 7, name: "IELTS with Islombek", capacity: 20 },
-    { id: 8, name: "Beginner", capacity: 18 },
-    { id: 9, name: "99", capacity: 25 },
-]
+
+
 
 function XonalarTab() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+    const [roomsList, setRoomsList] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState("")
+
+    const findRoomsArray = (obj) => {
+        if (Array.isArray(obj)) return obj
+        if (!obj || typeof obj !== 'object') return []
+        if (Array.isArray(obj.data)) return obj.data
+        if (obj.data && Array.isArray(obj.data.data)) return obj.data.data
+        if (Array.isArray(obj.rooms)) return obj.rooms
+        for (const key of Object.keys(obj)) {
+            if (Array.isArray(obj[key])) return obj[key]
+        }
+        return []
+    }
+
+    const fetchRooms = async () => {
+        setLoading(true)
+        setError("")
+        const token = localStorage.getItem("token")
+        
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/rooms", {
+                headers: token ? { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` } : {}
+            })
+            
+            const data = await response.json()
+            if (!response.ok) throw new Error(data.message || "Xonalarni yuklashda xatolik yuz berdi")
+            
+            const list = findRoomsArray(data)
+            setRoomsList(list.map((room, index) => ({
+                id: room.id || room._id || index + 1,
+                name: room.name || room.title || `Xona ${index + 1}`,
+                capacity: room.capacity || room.max_student || room.maxStudent || 0
+            })))
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchRooms()
+    }, [])
 
     return (
         <div className="relative">
             <div className="flex justify-between items-center mb-[20px]">
                 <div className="flex items-center gap-3">
                     <h3 className="text-[22px] font-[600]">Xonalar</h3>
+                    <button onClick={fetchRooms} className="text-gray-400 hover:text-purple-600" disabled={loading}>
+                        <i className={`fa-solid fa-rotate-right cursor-pointer ${loading ? 'animate-spin' : ''}`}></i>
+                    </button>
                 </div>
                 <Button
                     variant="contained"
@@ -57,20 +88,28 @@ function XonalarTab() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[16px]">
-                {rooms.map(room => (
-                    <div key={room.id} className="bg-white rounded-[12px] p-[16px] border border-gray-100 flex justify-between items-center shadow-sm">
-                        <div>
-                            <p className="text-[15px] font-[600] text-gray-800">{room.name}</p>
-                            <p className="text-[13px] text-gray-500">Sig'imi: {room.capacity}</p>
+            {loading ? (
+                <div className="text-center py-8 text-gray-500 font-[600]">Xonalar yuklanmoqda...</div>
+            ) : error ? (
+                <div className="text-center py-8 text-red-500 font-[600]">{error}</div>
+            ) : roomsList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 font-[600]">Xonalar topilmadi</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[16px]">
+                    {roomsList.map(room => (
+                        <div key={room.id} className="bg-white rounded-[12px] p-[16px] border border-gray-100 flex justify-between items-center shadow-sm">
+                            <div>
+                                <p className="text-[15px] font-[600] text-gray-800">{room.name}</p>
+                                <p className="text-[13px] text-gray-500">Sig'imi: {room.capacity}</p>
+                            </div>
+                            <div className="flex gap-[8px]">
+                                <i className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"></i>
+                                <i className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"></i>
+                            </div>
                         </div>
-                        <div className="flex gap-[8px]">
-                            <i className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"></i>
-                            <i className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"></i>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {isDrawerOpen && (
                 <div className="fixed inset-0 bg-black/20 z-[200] flex justify-end" onClick={() => setIsDrawerOpen(false)}>
@@ -102,11 +141,65 @@ function XonalarTab() {
 
 function KurslarTab() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+    const [coursesList, setCoursesList] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState("")
+
+    const findCoursesArray = (obj) => {
+        if (Array.isArray(obj)) return obj
+        if (!obj || typeof obj !== 'object') return []
+        if (Array.isArray(obj.data)) return obj.data
+        if (obj.data && Array.isArray(obj.data.data)) return obj.data.data
+        if (Array.isArray(obj.courses)) return obj.courses
+        for (const key of Object.keys(obj)) {
+            if (Array.isArray(obj[key])) return obj[key]
+        }
+        return []
+    }
+
+    const fetchCourses = async () => {
+        setLoading(true)
+        setError("")
+        const token = localStorage.getItem("token")
+        
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/courses", {
+                headers: token ? { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` } : {}
+            })
+            
+            const data = await response.json()
+            if (!response.ok) throw new Error(data.message || "Kurslarni yuklashda xatolik yuz berdi")
+            
+            const list = findCoursesArray(data)
+            setCoursesList(list.map((course, index) => ({
+                id: course.id || course._id || index + 1,
+                title: course.name || course.title || `Kurs ${index + 1}`,
+                desc: course.description || course.desc || "Ma'lumot mavjud emas",
+                duration: course.duration || "Noma'lum",
+                period: course.duration_month || course.durationMonth || course.month ? `${course.duration_month || course.durationMonth || course.month} oy` : "Noma'lum",
+                price: course.price ? `${course.price.toLocaleString()} so'm` : "Noma'lum",
+                color: cardColors[index % cardColors.length]
+            })))
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchCourses()
+    }, [])
 
     return (
         <div className="relative">
             <div className="flex justify-between items-center mb-[20px]">
-                <h3 className="text-[22px] font-[600]">Kurslar</h3>
+                <div className="flex items-center gap-3">
+                    <h3 className="text-[22px] font-[600]">Kurslar</h3>
+                    <button onClick={fetchCourses} className="text-gray-400 hover:text-purple-600" disabled={loading}>
+                        <i className={`fa-solid fa-rotate-right cursor-pointer ${loading ? 'animate-spin' : ''}`}></i>
+                    </button>
+                </div>
                 <Button
                     variant="contained"
                     onClick={() => setIsDrawerOpen(true)}
@@ -116,23 +209,31 @@ function KurslarTab() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[16px]">
-                {courses.map(course => (
-                    <div key={course.id} className={`rounded-[14px] p-[16px] border ${course.color} min-h-[160px] flex flex-col justify-between shadow-sm`}>
-                        <div>
-                            <p className="text-[14px] font-[600] text-gray-800 mb-[6px]">{course.title}</p>
-                            <p className="text-[12px] text-gray-500 leading-[1.4]">{course.desc}</p>
-                        </div>
-                        <div className="flex items-center justify-between mt-[12px]">
-                            <span className="text-[11px] bg-white border border-gray-200 rounded-[6px] px-[8px] py-[3px] font-[600]">{course.price}</span>
-                            <div className="flex gap-[6px]">
-                                <i className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"></i>
-                                <i className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"></i>
+            {loading ? (
+                <div className="text-center py-8 text-gray-500 font-[600]">Kurslar yuklanmoqda...</div>
+            ) : error ? (
+                <div className="text-center py-8 text-red-500 font-[600]">{error}</div>
+            ) : coursesList.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 font-[600]">Kurslar topilmadi</div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[16px]">
+                    {coursesList.map(course => (
+                        <div key={course.id} className={`rounded-[14px] p-[16px] border ${course.color} min-h-[160px] flex flex-col justify-between shadow-sm`}>
+                            <div>
+                                <p className="text-[14px] font-[600] text-gray-800 mb-[6px]">{course.title}</p>
+                                <p className="text-[12px] text-gray-500 leading-[1.4]">{course.desc}</p>
+                            </div>
+                            <div className="flex items-center justify-between mt-[12px]">
+                                <span className="text-[11px] bg-white border border-gray-200 rounded-[6px] px-[8px] py-[3px] font-[600]">{course.price}</span>
+                                <div className="flex gap-[6px]">
+                                    <i className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"></i>
+                                    <i className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"></i>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {/* Kurs qo'shish Drawer */}
             {isDrawerOpen && (

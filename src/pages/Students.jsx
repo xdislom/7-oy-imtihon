@@ -17,6 +17,8 @@ export default function Students() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [studentToDelete, setStudentToDelete] = useState(null)
     const [selectedGroups, setSelectedGroups] = useState([])
     const [tempSelected, setTempSelected] = useState([])
     const [students, setStudents] = useState([])
@@ -173,6 +175,39 @@ export default function Students() {
     }
 
 
+    const confirmDelete = (id) => {
+        setStudentToDelete(id)
+        setIsDeleteModalOpen(true)
+    }
+
+    const handleDelete = async () => {
+        if (!studentToDelete) return;
+        const token = localStorage.getItem("token")
+        
+        try {
+            const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/students/${studentToDelete}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            })
+            
+            if (response.ok) {
+                setStudents(prev => prev.filter(s => s.id !== studentToDelete))
+                showToast("success", "Talaba muvaffaqiyatli o'chirildi")
+            } else {
+                const data = await response.json().catch(() => ({}))
+                showToast("error", data.message || "O'chirishda xatolik yuz berdi")
+            }
+        } catch (error) {
+            console.error("Error deleting student:", error)
+            showToast("error", "Server bilan bog'lanishda xatolik")
+        } finally {
+            setIsDeleteModalOpen(false)
+            setStudentToDelete(null)
+        }
+    }
+
     const handleAddGroups = () => {
         setSelectedGroups([...new Set([...selectedGroups, ...tempSelected])])
         setIsModalOpen(false)
@@ -296,7 +331,10 @@ export default function Students() {
                                                 <td className="py-[16px] px-[12px]">
                                                     <div className="flex items-center justify-end gap-[12px] text-gray-400">
                                                         <i className="fa-regular fa-eye cursor-pointer hover:text-purple-600"></i>
-                                                        <i className="fa-regular fa-trash-can cursor-pointer hover:text-red-500"></i>
+                                                        <i 
+                                                            className="fa-regular fa-trash-can cursor-pointer hover:text-red-500"
+                                                            onClick={() => confirmDelete(student.id)}
+                                                        ></i>
                                                         <i className="fa-regular fa-pen-to-square cursor-pointer hover:text-purple-600"></i>
                                                     </div>
                                                 </td>
@@ -532,6 +570,34 @@ export default function Students() {
                                     Qo'shish
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Modal */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
+                    <div className="bg-white w-[380px] rounded-[16px] shadow-2xl p-[24px] animate-fade-in relative">
+                        <h3 className="text-[20px] font-[700] text-gray-800 mb-2">Talabani o'chirish</h3>
+                        <p className="text-[15px] text-gray-600 mb-[32px]">Rostdan ham o'chirishni xohlaysizmi?</p>
+                        
+                        <div className="flex justify-end gap-[12px]">
+                            <button 
+                                className="px-[20px] py-[10px] text-[15px] font-[600] text-gray-500 hover:bg-gray-50 rounded-[10px] transition-colors"
+                                onClick={() => {
+                                    setIsDeleteModalOpen(false)
+                                    setStudentToDelete(null)
+                                }}
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                className="px-[24px] py-[10px] text-[15px] font-[600] bg-[#e11d48] text-white rounded-[10px] hover:bg-[#be123c] transition-colors"
+                                onClick={handleDelete}
+                            >
+                                Ha
+                            </button>
                         </div>
                     </div>
                 </div>

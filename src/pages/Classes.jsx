@@ -268,12 +268,19 @@ export default function Groups() {
             })
 
             const data = await response.json()
+            console.log("RAW COURSES API RESPONSE:", data)
 
             if (!response.ok) {
                 throw new Error(data.message || "Kurslarni olishda xatolik yuz berdi")
             }
 
             const list = findCoursesArray(data)
+            console.log("EXTRACTED COURSES ARRAY:", list)
+            
+            if (list.length === 0) {
+                setCourseError("Ma'lumot topilmadi: " + JSON.stringify(data).substring(0, 100))
+            }
+            
             setCourses(list.map(normalizeCourse))
         } catch (error) {
             console.error("Error fetching courses:", error)
@@ -380,6 +387,12 @@ export default function Groups() {
                             Guruhlar
                         </button>
                         <button 
+                            onClick={() => setActiveTab("Kurslar")}
+                            className={`px-[16px] py-[6px] rounded-[8px] text-[14px] font-[600] transition-colors ${activeTab === "Kurslar" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"}`}
+                        >
+                            Kurslar
+                        </button>
+                        <button 
                             onClick={() => setActiveTab("Arxiv")}
                             className={`px-[16px] py-[6px] rounded-[8px] text-[14px] font-[600] flex items-center gap-2 transition-colors ${activeTab === "Arxiv" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"}`}
                         >
@@ -422,9 +435,10 @@ export default function Groups() {
                         </div>
                     </div>
 
-                    {/* Groups Table */}
-                    <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="overflow-x-auto">
+                    {/* Content Area */}
+                    {activeTab === "Guruhlar" && (
+                        <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead className="bg-gray-50/50">
                                     <tr className="text-gray-400 text-[12px] font-[600] uppercase tracking-wider">
@@ -516,6 +530,66 @@ export default function Groups() {
                             </table>
                         </div>
                     </div>
+                    )}
+
+                    {activeTab === "Kurslar" && (
+                        <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-gray-50/50">
+                                        <tr className="text-gray-400 text-[12px] font-[600] uppercase tracking-wider">
+                                            <th className="py-[16px] px-[24px]">#</th>
+                                            <th className="py-[16px] px-[24px]">Kurs nomi</th>
+                                            <th className="py-[16px] px-[24px]">Davomiyligi</th>
+                                            <th className="py-[16px] px-[24px]">Narxi</th>
+                                            <th className="py-[16px] px-[24px] text-right">
+                                                <button onClick={fetchCourses} className="text-gray-400 hover:text-purple-600" disabled={coursesLoading}>
+                                                    <i className={`fa-solid fa-rotate-right cursor-pointer ${coursesLoading ? 'animate-spin' : ''}`}></i>
+                                                </button>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-[14px]">
+                                        {coursesLoading && (
+                                            <tr>
+                                                <td colSpan="5" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
+                                                    Kurslar yuklanmoqda...
+                                                </td>
+                                            </tr>
+                                        )}
+
+                                        {!coursesLoading && courseError && (
+                                            <tr>
+                                                <td colSpan="5" className="py-[28px] px-[24px] text-center text-red-500 font-[600]">
+                                                    {courseError}
+                                                </td>
+                                            </tr>
+                                        )}
+
+                                        {!coursesLoading && !courseError && courses.length === 0 && (
+                                            <tr>
+                                                <td colSpan="5" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
+                                                    Kurslar topilmadi
+                                                </td>
+                                            </tr>
+                                        )}
+
+                                        {!coursesLoading && !courseError && courses.map((course, index) => (
+                                            <tr key={course.id} className="border-t border-gray-50 hover:bg-gray-50/60 transition-colors">
+                                                <td className="py-[16px] px-[24px] font-[600] text-gray-500">{index + 1}</td>
+                                                <td className="py-[16px] px-[24px] font-[700] text-gray-800">{course.name}</td>
+                                                <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{course.durationMonth ? `${course.durationMonth} oy` : "-"}</td>
+                                                <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{course.price ? `${course.price.toLocaleString()} so'm` : "-"}</td>
+                                                <td className="py-[16px] px-[24px] text-right">
+                                                    <i className="fa-solid fa-ellipsis-vertical text-gray-300 cursor-pointer hover:text-gray-600"></i>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
