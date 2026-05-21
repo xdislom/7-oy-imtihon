@@ -3,11 +3,7 @@ import Sidebar from "../components/Sidebar"
 import Header from "../components/Header"
 import { Button, Checkbox } from "@mui/material"
 
-const initialTeachers = [
-    { id: 1, name: "Ali Valiyev", groups: ["N26", "n105"], phone: "+998976541223", birthDate: "12.12.1990", createdDate: "12.05.2026" },
-    { id: 2, name: "Salim Qodirov", groups: ["n105"], phone: "+998977777777", birthDate: "14.01.1987", createdDate: "14.05.2026" },
-    { id: 3, name: "Bobur", groups: ["n105"], phone: "+998999999999", birthDate: "14.03.1992", createdDate: "14.05.2026" },
-]
+
 
 const availableGroups = ["N26", "n105", "N30", "UX/UI-01"]
 
@@ -15,10 +11,18 @@ export default function Teachers() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [teacherToDelete, setTeacherToDelete] = useState(null)
+    const [toast, setToast] = useState(null)
+
+    const showToast = (type, message) => {
+        setToast({ type, message })
+        setTimeout(() => setToast(null), 3500)
+    }
 
     const [selectedGroups, setSelectedGroups] = useState([])
     const [tempSelected, setTempSelected] = useState([])
-    const [teachersList, setTeachersList] = useState(initialTeachers)
+    const [teachersList, setTeachersList] = useState([])
 
     const [searchTerm, setSearchTerm] = useState('')
     const [groupSearchTerm, setGroupSearchTerm] = useState('')
@@ -33,13 +37,38 @@ export default function Teachers() {
         password: '',
     })
 
+    const findTeachersArray = (obj) => {
+        if (Array.isArray(obj)) return obj
+        if (!obj || typeof obj !== 'object') return []
+        if (Array.isArray(obj.data)) return obj.data
+        if (obj.data && Array.isArray(obj.data.data)) return obj.data.data
+        if (Array.isArray(obj.teachers)) return obj.teachers
+        for (const key of Object.keys(obj)) {
+            if (Array.isArray(obj[key])) return obj[key]
+        }
+        return []
+    }
+
     // API'dan o'qituvchilarni olib kelish
     const fetchTeachers = async () => {
+        const token = localStorage.getItem("token")
         try {
-            const res = await fetch('https://najot-edu.softwareengineer.uz/api/v1/teachers')
+            const res = await fetch('https://najot-edu.softwareengineer.uz/api/v1/teachers', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
             if (res.ok) {
                 const data = await res.json()
-                setTeachersList(data.data || data)
+                const list = findTeachersArray(data)
+                setTeachersList(list.map((t, index) => ({
+                    id: t.id || t._id || index + 1,
+                    name: t.full_name || t.name || "Noma'lum o'qituvchi",
+                    groups: Array.isArray(t.groups) ? t.groups.map(g => typeof g === 'object' ? g.name : g) : [],
+                    phone: t.phone || "Noma'lum",
+                    birthDate: t.birth_date ? new Date(t.birth_date).toLocaleDateString('ru-RU') : "Noma'lum",
+                    createdDate: t.created_at ? new Date(t.created_at).toLocaleDateString('ru-RU') : "Noma'lum"
+                })))
             }
         } catch (error) {
             console.error("Xatolik:", error)
@@ -64,16 +93,18 @@ export default function Teachers() {
                 groups: selectedGroups
             }
 
+            const token = localStorage.getItem("token")
             const response = await fetch('https://najot-edu.softwareengineer.uz/api/v1/teachers', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(payload)
             })
 
             if (response.ok) {
-                alert("O'qituvchi muvaffaqiyatli qo'shildi!")
+                showToast("success", "O'qituvchi muvaffaqiyatli qo'shildi!")
                 setIsDrawerOpen(false)
                 setFormData({
                     name: '',
@@ -86,13 +117,46 @@ export default function Teachers() {
                 setSelectedImage(null)
                 fetchTeachers()
             } else {
-                alert("Xatolik yuz berdi")
+                showToast("error", "Xatolik yuz berdi")
             }
         } catch (error) {
             console.error(error)
-            alert("Xatolik yuz berdi")
+            showToast("error", "Server bilan bog'lanishda xatolik yuz berdi")
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const confirmDelete = (id) => {
+        setTeacherToDelete(id)
+        setIsDeleteModalOpen(true)
+    }
+
+    const handleDelete = async () => {
+        if (!teacherToDelete) return;
+        const token = localStorage.getItem("token")
+        
+        try {
+            const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/teachers/${teacherToDelete}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            })
+            
+            if (response.ok) {
+                setTeachersList(prev => prev.filter(t => t.id !== teacherToDelete))
+                showToast("success", "O'qituvchi muvaffaqiyatli o'chirildi")
+            } else {
+                const data = await response.json().catch(() => ({}))
+                showToast("error", data.message || "O'chirishda xatolik yuz berdi")
+            }
+        } catch (error) {
+            console.error("Error deleting teacher:", error)
+            showToast("error", "Server bilan bog'lanishda xatolik")
+        } finally {
+            setIsDeleteModalOpen(false)
+            setTeacherToDelete(null)
         }
     }
 
@@ -227,7 +291,10 @@ export default function Teachers() {
                                             <td className="p-[16px]">
                                                 <div className="flex items-center justify-center gap-[12px] text-gray-400">
                                                     <i className="fa-regular fa-eye cursor-pointer hover:text-purple-600"></i>
-                                                    <i className="fa-regular fa-trash-can cursor-pointer hover:text-red-500"></i>
+                                                    <i 
+                                                        className="fa-regular fa-trash-can cursor-pointer hover:text-red-500"
+                                                        onClick={() => confirmDelete(teacher.id)}
+                                                    ></i>
                                                     <i className="fa-regular fa-pen-to-square cursor-pointer hover:text-purple-600"></i>
                                                 </div>
                                             </td>
@@ -417,8 +484,55 @@ export default function Teachers() {
                 </div>
             )}
 
+            {/* Delete Modal */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
+                    <div className="bg-white w-[380px] rounded-[16px] shadow-2xl p-[24px] animate-fade-in relative">
+                        <h3 className="text-[20px] font-[700] text-gray-800 mb-2">O'qituvchini o'chirish</h3>
+                        <p className="text-[15px] text-gray-600 mb-[32px]">Rostdan ham o'chirishni xohlaysizmi?</p>
+                        
+                        <div className="flex justify-end gap-[12px]">
+                            <button 
+                                className="px-[20px] py-[10px] text-[15px] font-[600] text-gray-500 hover:bg-gray-50 rounded-[10px] transition-colors"
+                                onClick={() => {
+                                    setIsDeleteModalOpen(false)
+                                    setTeacherToDelete(null)
+                                }}
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                className="px-[24px] py-[10px] text-[15px] font-[600] bg-[#e11d48] text-white rounded-[10px] hover:bg-[#be123c] transition-colors"
+                                onClick={handleDelete}
+                            >
+                                Ha
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div
+                    className={`fixed bottom-[32px] right-[32px] z-[999] flex items-center gap-[12px] px-[20px] py-[14px] rounded-[14px] shadow-2xl text-white text-[14px] font-[600] animate-toast-up ${
+                        toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}
+                >
+                    <i className={`fa-solid ${toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'} text-[18px]`}></i>
+                    {toast.message}
+                </div>
+            )}
+
             <style dangerouslySetInnerHTML={{
                 __html: `
+                @keyframes toast-up {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-toast-up {
+                    animation: toast-up 0.3s ease-out;
+                }
                 @keyframes slide-in {
                     from { transform: translateX(100%); }
                     to { transform: translateX(0); }

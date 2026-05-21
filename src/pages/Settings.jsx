@@ -27,6 +27,14 @@ function XonalarTab() {
     const [roomsList, setRoomsList] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [roomToDelete, setRoomToDelete] = useState(null)
+    const [toast, setToast] = useState(null)
+
+    const showToast = (type, message) => {
+        setToast({ type, message })
+        setTimeout(() => setToast(null), 3500)
+    }
 
     const findRoomsArray = (obj) => {
         if (Array.isArray(obj)) return obj
@@ -70,6 +78,37 @@ function XonalarTab() {
         fetchRooms()
     }, [])
 
+    const confirmDelete = (id) => {
+        setRoomToDelete(id)
+        setIsDeleteModalOpen(true)
+    }
+
+    const handleDelete = async () => {
+        if (!roomToDelete) return;
+        const token = localStorage.getItem("token")
+        
+        try {
+            const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/rooms/${roomToDelete}`, {
+                method: "DELETE",
+                headers: token ? { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` } : {}
+            })
+            
+            if (response.ok) {
+                setRoomsList(prev => prev.filter(r => r.id !== roomToDelete))
+                showToast("success", "Xona muvaffaqiyatli o'chirildi")
+            } else {
+                const data = await response.json().catch(() => ({}))
+                showToast("error", data.message || "O'chirishda xatolik yuz berdi")
+            }
+        } catch (error) {
+            console.error("Error deleting room:", error)
+            showToast("error", "Server bilan bog'lanishda xatolik")
+        } finally {
+            setIsDeleteModalOpen(false)
+            setRoomToDelete(null)
+        }
+    }
+
     return (
         <div className="relative">
             <div className="flex justify-between items-center mb-[20px]">
@@ -103,11 +142,54 @@ function XonalarTab() {
                                 <p className="text-[13px] text-gray-500">Sig'imi: {room.capacity}</p>
                             </div>
                             <div className="flex gap-[8px]">
-                                <i className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"></i>
+                                <i 
+                                    className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"
+                                    onClick={() => confirmDelete(room.id)}
+                                ></i>
                                 <i className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"></i>
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Delete Modal */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
+                    <div className="bg-white w-[380px] rounded-[16px] shadow-2xl p-[24px] animate-fade-in relative">
+                        <h3 className="text-[20px] font-[700] text-gray-800 mb-2">Xonani o'chirish</h3>
+                        <p className="text-[15px] text-gray-600 mb-[32px]">Rostdan ham o'chirishni xohlaysizmi?</p>
+                        
+                        <div className="flex justify-end gap-[12px]">
+                            <button 
+                                className="px-[20px] py-[10px] text-[15px] font-[600] text-gray-500 hover:bg-gray-50 rounded-[10px] transition-colors"
+                                onClick={() => {
+                                    setIsDeleteModalOpen(false)
+                                    setRoomToDelete(null)
+                                }}
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                className="px-[24px] py-[10px] text-[15px] font-[600] bg-[#e11d48] text-white rounded-[10px] hover:bg-[#be123c] transition-colors"
+                                onClick={handleDelete}
+                            >
+                                Ha
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div
+                    className={`fixed bottom-[32px] right-[32px] z-[999] flex items-center gap-[12px] px-[20px] py-[14px] rounded-[14px] shadow-2xl text-white text-[14px] font-[600] animate-toast-up ${
+                        toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}
+                >
+                    <i className={`fa-solid ${toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'} text-[18px]`}></i>
+                    {toast.message}
                 </div>
             )}
 
@@ -144,6 +226,14 @@ function KurslarTab() {
     const [coursesList, setCoursesList] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [courseToDelete, setCourseToDelete] = useState(null)
+    const [toast, setToast] = useState(null)
+
+    const showToast = (type, message) => {
+        setToast({ type, message })
+        setTimeout(() => setToast(null), 3500)
+    }
 
     const findCoursesArray = (obj) => {
         if (Array.isArray(obj)) return obj
@@ -191,6 +281,37 @@ function KurslarTab() {
         fetchCourses()
     }, [])
 
+    const confirmDelete = (id) => {
+        setCourseToDelete(id)
+        setIsDeleteModalOpen(true)
+    }
+
+    const handleDelete = async () => {
+        if (!courseToDelete) return;
+        const token = localStorage.getItem("token")
+        
+        try {
+            const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/courses/${courseToDelete}`, {
+                method: "DELETE",
+                headers: token ? { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` } : {}
+            })
+            
+            if (response.ok) {
+                setCoursesList(prev => prev.filter(c => c.id !== courseToDelete))
+                showToast("success", "Kurs muvaffaqiyatli o'chirildi")
+            } else {
+                const data = await response.json().catch(() => ({}))
+                showToast("error", data.message || "O'chirishda xatolik yuz berdi")
+            }
+        } catch (error) {
+            console.error("Error deleting course:", error)
+            showToast("error", "Server bilan bog'lanishda xatolik")
+        } finally {
+            setIsDeleteModalOpen(false)
+            setCourseToDelete(null)
+        }
+    }
+
     return (
         <div className="relative">
             <div className="flex justify-between items-center mb-[20px]">
@@ -226,12 +347,55 @@ function KurslarTab() {
                             <div className="flex items-center justify-between mt-[12px]">
                                 <span className="text-[11px] bg-white border border-gray-200 rounded-[6px] px-[8px] py-[3px] font-[600]">{course.price}</span>
                                 <div className="flex gap-[6px]">
-                                    <i className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"></i>
+                                    <i 
+                                        className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"
+                                        onClick={() => confirmDelete(course.id)}
+                                    ></i>
                                     <i className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"></i>
                                 </div>
                             </div>
                         </div>
                     ))}
+                </div>
+            )}
+
+            {/* Delete Modal */}
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
+                    <div className="bg-white w-[380px] rounded-[16px] shadow-2xl p-[24px] animate-fade-in relative">
+                        <h3 className="text-[20px] font-[700] text-gray-800 mb-2">Kursni o'chirish</h3>
+                        <p className="text-[15px] text-gray-600 mb-[32px]">Rostdan ham o'chirishni xohlaysizmi?</p>
+                        
+                        <div className="flex justify-end gap-[12px]">
+                            <button 
+                                className="px-[20px] py-[10px] text-[15px] font-[600] text-gray-500 hover:bg-gray-50 rounded-[10px] transition-colors"
+                                onClick={() => {
+                                    setIsDeleteModalOpen(false)
+                                    setCourseToDelete(null)
+                                }}
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                className="px-[24px] py-[10px] text-[15px] font-[600] bg-[#e11d48] text-white rounded-[10px] hover:bg-[#be123c] transition-colors"
+                                onClick={handleDelete}
+                            >
+                                Ha
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div
+                    className={`fixed bottom-[32px] right-[32px] z-[999] flex items-center gap-[12px] px-[20px] py-[14px] rounded-[14px] shadow-2xl text-white text-[14px] font-[600] animate-toast-up ${
+                        toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}
+                >
+                    <i className={`fa-solid ${toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'} text-[18px]`}></i>
+                    {toast.message}
                 </div>
             )}
 
@@ -361,7 +525,14 @@ export default function Settings() {
                     </div>
                 </div>
             </div>
-            <style dangerouslySetInnerHTML={{ __html: `@keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } } .animate-slide-in { animation: slide-in 0.3s ease-out; }` }} />
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } } 
+                .animate-slide-in { animation: slide-in 0.3s ease-out; }
+                @keyframes fade-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+                .animate-fade-in { animation: fade-in 0.2s ease-out; }
+                @keyframes toast-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-toast-up { animation: toast-up 0.3s ease-out; }
+            ` }} />
         </div>
     )
 }
