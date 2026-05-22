@@ -424,7 +424,7 @@ export default function GroupDetail() {
 
     const scheduleDates = useMemo(() => getScheduleDates(schedules, group), [schedules, group])
     const scheduleMonths = useMemo(() => getScheduleMonths(schedules, group), [schedules, group])
-    console.log( group)
+    console.log(group)
     return (
         <div className="w-full bg-gray-50 min-h-screen">
             <div className="flex">
@@ -453,19 +453,19 @@ export default function GroupDetail() {
 
                     <div className="flex items-center justify-between border-b border-gray-200 mb-[24px]">
                         <div className="flex gap-[28px]">
-                            <button 
+                            <button
                                 onClick={() => setActiveTab("info")}
                                 className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "info" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
                             >
                                 Ma'lumotlar
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setActiveTab("lessons")}
                                 className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "lessons" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
                             >
                                 Guruh darsliklari
                             </button>
-                            <button 
+                            <button
                                 onClick={() => setActiveTab("attendance")}
                                 className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "attendance" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
                             >
@@ -659,7 +659,10 @@ export default function GroupDetail() {
                             <div className="px-[32px] py-[28px]">
                                 <div className="flex items-center justify-between mb-[24px]">
                                     <h3 className="text-[20px] font-[800] text-gray-900">Guruh darsliklari</h3>
-                                    <button className="px-[20px] py-[10px] bg-teal-500 hover:bg-teal-600 text-white font-[700] rounded-[8px] transition-colors">
+                                    <button
+                                        onClick={() => navigate(`${location.pathname}/homework/create`)}
+                                        className="px-[20px] py-[10px] bg-teal-500 hover:bg-teal-600 text-white font-[700] rounded-[8px] transition-colors"
+                                    >
                                         Qo'shish
                                     </button>
                                 </div>
@@ -667,41 +670,37 @@ export default function GroupDetail() {
                                 <div className="flex gap-[8px] mb-[28px] overflow-x-auto">
                                     <button
                                         onClick={() => setActiveLessonsTab("homework")}
-                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${
-                                            activeLessonsTab === "homework"
+                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${activeLessonsTab === "homework"
                                                 ? 'bg-white border border-gray-200 text-gray-900'
                                                 : 'text-gray-500 hover:text-gray-700'
-                                        }`}
+                                            }`}
                                     >
                                         Uyga vazifa
                                     </button>
                                     <button
                                         onClick={() => setActiveLessonsTab("videos")}
-                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${
-                                            activeLessonsTab === "videos"
+                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${activeLessonsTab === "videos"
                                                 ? 'bg-white border border-gray-200 text-gray-900'
                                                 : 'text-gray-500 hover:text-gray-700'
-                                        }`}
+                                            }`}
                                     >
                                         Videolar
                                     </button>
                                     <button
                                         onClick={() => setActiveLessonsTab("exams")}
-                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${
-                                            activeLessonsTab === "exams"
+                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${activeLessonsTab === "exams"
                                                 ? 'bg-white border border-gray-200 text-gray-900'
                                                 : 'text-gray-500 hover:text-gray-700'
-                                        }`}
+                                            }`}
                                     >
                                         Imtihonlar
                                     </button>
                                     <button
                                         onClick={() => setActiveLessonsTab("journal")}
-                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${
-                                            activeLessonsTab === "journal"
+                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${activeLessonsTab === "journal"
                                                 ? 'bg-white border border-gray-200 text-gray-900'
                                                 : 'text-gray-500 hover:text-gray-700'
-                                        }`}
+                                            }`}
                                     >
                                         Jurnal
                                     </button>

@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard"
 import Teachers from "./pages/Teachers"
 import Classes from "./pages/Classes"
 import GroupDetail from "./pages/GroupDetail"
+import GroupHomeworkCreate from "./pages/GroupHomeworkCreate"
 import Students from "./pages/Students"
 import Gifts from "./pages/Gifts"
 import Settings from "./pages/Settings"
@@ -18,6 +19,8 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/teachers" element={<Teachers />} />
                 <Route path="/classes" element={<Classes />} />
+                <Route path="/dashboard/groups/:groupId/homework/create" element={<GroupHomeworkCreate />} />
+                <Route path="/classes/groups/:groupId/homework/create" element={<GroupHomeworkCreate />} />
                 <Route path="/dashboard/groups/:groupId" element={<GroupDetail />} />
                 <Route path="/classes/groups/:groupId" element={<GroupDetail />} />
                 <Route path="/students" element={<Students />} />
