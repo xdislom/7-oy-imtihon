@@ -3,10 +3,6 @@ import Sidebar from "../components/Sidebar"
 import Header from "../components/Header"
 import { Button, Checkbox } from "@mui/material"
 
-
-
-const availableGroups = ["N26", "n105", "N30", "UX/UI-01"]
-
 export default function Teachers() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -20,6 +16,7 @@ export default function Teachers() {
         setTimeout(() => setToast(null), 3500)
     }
 
+    const [availableGroups, setAvailableGroups] = useState([])
     const [selectedGroups, setSelectedGroups] = useState([])
     const [tempSelected, setTempSelected] = useState([])
     const [teachersList, setTeachersList] = useState([])
@@ -51,11 +48,11 @@ export default function Teachers() {
 
     // API'dan o'qituvchilarni olib kelish
     const fetchTeachers = async () => {
-        const token = localStorage.getItem("token")
+        const token = localStorage.getItem("token") || ""
         try {
             const res = await fetch('https://najot-edu.softwareengineer.uz/api/v1/teachers', {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
                 }
             })
             if (res.ok) {
@@ -75,8 +72,28 @@ export default function Teachers() {
         }
     }
 
+    const fetchGroups = async () => {
+        const token = localStorage.getItem("token") || ""
+        try {
+            const res = await fetch('https://najot-edu.softwareengineer.uz/api/v1/groups/all', {
+                headers: { 'Authorization': `Bearer ${token.replace(/^Bearer\s+/i, '')}` }
+            })
+            if (res.ok) {
+                const data = await res.json()
+                let list = []
+                if (Array.isArray(data)) list = data
+                else if (Array.isArray(data.data)) list = data.data
+                else if (data.data && Array.isArray(data.data.data)) list = data.data.data
+                setAvailableGroups(list)
+            }
+        } catch (error) {
+            console.error("Guruhlarni yuklashda xatolik:", error)
+        }
+    }
+
     useEffect(() => {
         fetchTeachers()
+        fetchGroups()
     }, [])
 
     // O'qituvchini saqlash (POST)
@@ -89,16 +106,20 @@ export default function Teachers() {
         try {
             setIsLoading(true)
             const payload = {
-                ...formData,
-                groups: selectedGroups
+                full_name: formData.name,
+                phone: formData.phone,
+                email: formData.email,
+                address: formData.address,
+                password: formData.password,
+                groups: selectedGroups.map(g => typeof g === 'object' ? g.id : g)
             }
 
-            const token = localStorage.getItem("token")
+            const token = localStorage.getItem("token") || ""
             const response = await fetch('https://najot-edu.softwareengineer.uz/api/v1/teachers', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
                 },
                 body: JSON.stringify(payload)
             })
@@ -134,13 +155,13 @@ export default function Teachers() {
 
     const handleDelete = async () => {
         if (!teacherToDelete) return;
-        const token = localStorage.getItem("token")
+        const token = localStorage.getItem("token") || ""
         
         try {
             const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/teachers/${teacherToDelete}`, {
                 method: "DELETE",
                 headers: {
-                    "Authorization": `Bearer ${token}`
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
                 }
             })
             
@@ -171,8 +192,8 @@ export default function Teachers() {
         setIsModalOpen(false)
     }
 
-    const removeGroup = (group) => {
-        setSelectedGroups(selectedGroups.filter(g => g !== group))
+    const removeGroup = (groupId) => {
+        setSelectedGroups(selectedGroups.filter(g => (g.id || g) !== groupId))
     }
 
     const handleImageChange = (e) => {
@@ -191,10 +212,11 @@ export default function Teachers() {
 
     // Modal ichidagi guruhlarni qidiruv bo'yicha filtrlash
     const filteredGroups = useMemo(() => {
-        return availableGroups.filter(group =>
-            group.toLowerCase().includes(groupSearchTerm.toLowerCase())
-        )
-    }, [groupSearchTerm])
+        return availableGroups.filter(group => {
+            const name = typeof group === 'string' ? group : group.name
+            return name?.toLowerCase().includes(groupSearchTerm.toLowerCase())
+        })
+    }, [availableGroups, groupSearchTerm])
 
     return (
         <div className="w-full relative bg-gray-50 min-h-screen">
@@ -388,12 +410,16 @@ export default function Teachers() {
                             <div>
                                 <label className="block text-[15px] font-[700] text-[#2d3748] mb-[8px]">Guruh</label>
                                 <div className="flex flex-wrap gap-[8px] mb-3">
-                                    {selectedGroups.map(group => (
-                                        <div key={group} className="flex items-center gap-2 bg-purple-50 px-[12px] py-[6px] rounded-[10px] border border-purple-100 text-[13px] font-[600] text-purple-600 group hover:bg-purple-100 transition-colors">
-                                            {group}
-                                            <i className="fa-solid fa-xmark cursor-pointer text-purple-300 hover:text-red-500" onClick={() => removeGroup(group)}></i>
+                                    {selectedGroups.map(group => {
+                                        const groupId = group.id || group
+                                        const groupName = group.name || group
+                                        return (
+                                        <div key={groupId} className="flex items-center gap-2 bg-purple-50 px-[12px] py-[6px] rounded-[10px] border border-purple-100 text-[13px] font-[600] text-purple-600 group hover:bg-purple-100 transition-colors">
+                                            {groupName}
+                                            <i className="fa-solid fa-xmark cursor-pointer text-purple-300 hover:text-red-500" onClick={() => removeGroup(groupId)}></i>
                                         </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                                 <button
                                     onClick={openGroupModal}
@@ -457,19 +483,24 @@ export default function Teachers() {
 
                             <div className="space-y-[2px] max-h-[200px] overflow-y-auto mb-[24px] border border-gray-100 rounded-[16px]">
                                 {filteredGroups.length > 0 ? (
-                                    filteredGroups.map(group => (
-                                        <label key={group} className="flex items-center gap-[12px] p-[12px] hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0">
+                                    filteredGroups.map(group => {
+                                        const groupId = group.id || group
+                                        const groupName = group.name || group
+                                        const isChecked = tempSelected.some(g => (g.id || g) === groupId)
+                                        return (
+                                        <label key={groupId} className="flex items-center gap-[12px] p-[12px] hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0">
                                             <Checkbox
                                                 size="small"
-                                                checked={tempSelected.includes(group)}
+                                                checked={isChecked}
                                                 onChange={(e) => {
                                                     if (e.target.checked) setTempSelected([...tempSelected, group])
-                                                    else setTempSelected(tempSelected.filter(g => g !== group))
+                                                    else setTempSelected(tempSelected.filter(g => (g.id || g) !== groupId))
                                                 }}
                                             />
-                                            <span className="text-[14px] font-[500] text-gray-700">{group}</span>
+                                            <span className="text-[14px] font-[500] text-gray-700">{groupName}</span>
                                         </label>
-                                    ))
+                                        )
+                                    })
                                 ) : (
                                     <div className="p-4 text-center text-gray-400 text-[13px]">Guruh topilmadi</div>
                                 )}

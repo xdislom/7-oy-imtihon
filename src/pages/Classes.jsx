@@ -162,6 +162,13 @@ export default function Groups() {
     const [roomsLoading, setRoomsLoading] = useState(false)
     const [roomError, setRoomError] = useState("")
     const [roomSaving, setRoomSaving] = useState(false)
+    const [isCourseModalOpen, setIsCourseModalOpen] = useState(false)
+    const [courseName, setCourseName] = useState("")
+    const [courseTime, setCourseTime] = useState("")
+    const [courseDuration, setCourseDuration] = useState("")
+    const [coursePrice, setCoursePrice] = useState("")
+    const [courseDesc, setCourseDesc] = useState("")
+    const [courseSaving, setCourseSaving] = useState(false)
     
     const [selectedStudents, setSelectedStudents] = useState([])
     const [selectedTeacher, setSelectedTeacher] = useState("")
@@ -169,6 +176,22 @@ export default function Groups() {
     const [selectedRoomId, setSelectedRoomId] = useState("")
     const [roomName, setRoomName] = useState("")
     const [roomCapacity, setRoomCapacity] = useState("")
+
+    const [groupName, setGroupName] = useState("")
+    const [groupDays, setGroupDays] = useState([])
+    const [groupStartTime, setGroupStartTime] = useState("09:00")
+    const [groupStartDate, setGroupStartDate] = useState("")
+    const [groupDesc, setGroupDesc] = useState("")
+    const [groupSaving, setGroupSaving] = useState(false)
+    const [groupError, setGroupError] = useState("")
+
+    const [teachers, setTeachers] = useState([])
+    const [teachersLoading, setTeachersLoading] = useState(false)
+    const [teacherSearchTerm, setTeacherSearchTerm] = useState("")
+
+    const [students, setStudents] = useState([])
+    const [studentsLoading, setStudentsLoading] = useState(false)
+    const [studentSearchTerm, setStudentSearchTerm] = useState("")
 
     const fetchGroups = async () => {
         setLoading(true)
@@ -340,11 +363,214 @@ export default function Groups() {
         }
     }
 
+    const handleSaveCourse = async () => {
+        if (!courseName.trim() || !courseDuration || !coursePrice || !courseTime || !courseDesc.trim()) {
+            setCourseError("Barcha maydonlarni to'ldiring")
+            return
+        }
+
+        setCourseSaving(true)
+        setCourseError("")
+        const token = localStorage.getItem("token") || ""
+
+        try {
+            const payload = {
+                name: courseName.trim(),
+                duration: courseTime,
+                duration_month: Number(courseDuration),
+                price: Number(coursePrice),
+                description: courseDesc.trim()
+            }
+            console.log("Sending course payload:", payload)
+
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/courses", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                },
+                body: JSON.stringify(payload)
+            })
+
+            const data = await response.json()
+            console.log("Course save response:", data)
+
+            if (!response.ok) {
+                const errMsg = Array.isArray(data.message) ? data.message.join(", ") : (data.message || "Kurs qo'shishda xatolik yuz berdi")
+                throw new Error(errMsg)
+            }
+
+            const newCourse = normalizeCourse(data.data || data, courses.length)
+            setCourses(prev => [...prev, newCourse])
+            setCourseName("")
+            setCourseTime("")
+            setCourseDuration("")
+            setCoursePrice("")
+            setCourseDesc("")
+            setIsCourseModalOpen(false)
+            fetchCourses()
+        } catch (error) {
+            console.error("Error saving course:", error)
+            setCourseError(error.message || "Kurs qo'shishda xatolik!")
+        } finally {
+            setCourseSaving(false)
+        }
+    }
+
+    const handleSaveGroup = async () => {
+        if (!groupName.trim() || !selectedCourseId || !selectedRoomId || groupDays.length === 0 || !groupStartTime || !groupStartDate) {
+            setGroupError("Barcha majburiy maydonlarni to'ldiring")
+            return
+        }
+
+        setGroupSaving(true)
+        setGroupError("")
+        const token = localStorage.getItem("token") || ""
+
+        try {
+            const dayMap = {
+                "Dushanba": "MONDAY",
+                "Seshanba": "TUESDAY",
+                "Chorshanba": "WEDNESDAY",
+                "Payshanba": "THURSDAY",
+                "Juma": "FRIDAY",
+                "Shanba": "SATURDAY",
+                "Yakshanba": "SUNDAY"
+            };
+
+            const payload = {
+                name: groupName.trim(),
+                course_id: Number(selectedCourseId),
+                room_id: Number(selectedRoomId),
+                week_day: groupDays.map(d => dayMap[d] || d),
+                start_time: groupStartTime,
+                start_date: groupStartDate,
+                description: groupDesc.trim(),
+                max_student: Number(rooms.find(r => String(r.id) === String(selectedRoomId))?.capacity || 20)
+            }
+
+            if (selectedTeacher) {
+                payload.teacher_id = selectedTeacher
+            }
+
+            if (selectedStudents.length > 0) {
+                payload.students = selectedStudents
+            }
+
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/groups", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                },
+                body: JSON.stringify(payload)
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                const errMsg = Array.isArray(data.message) ? data.message.join(", ") : (data.message || "Guruh qo'shishda xatolik yuz berdi")
+                throw new Error(errMsg)
+            }
+
+            setGroupName("")
+            setSelectedCourseId("")
+            setSelectedRoomId("")
+            setGroupDays([])
+            setGroupStartTime("09:00")
+            setGroupStartDate("")
+            setGroupDesc("")
+            setSelectedTeacher("")
+            setSelectedStudents([])
+            setIsDrawerOpen(false)
+            fetchGroups()
+        } catch (error) {
+            console.error("Error saving group:", error)
+            setGroupError(error.message || "Guruh qo'shishda xatolik!")
+        } finally {
+            setGroupSaving(false)
+        }
+    }
+
+    const fetchTeachers = async () => {
+        setTeachersLoading(true)
+        const token = localStorage.getItem("token")
+        
+        if (!token || token === "undefined" || token === "null") {
+            setTeachersLoading(false)
+            return
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/teachers", {
+                headers: {
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                }
+            })
+
+            const data = await response.json()
+            if (response.ok) {
+                let list = []
+                if (Array.isArray(data)) list = data
+                else if (Array.isArray(data.data)) list = data.data
+                else if (data.data && Array.isArray(data.data.data)) list = data.data.data
+                else if (Array.isArray(data.teachers)) list = data.teachers
+                
+                setTeachers(list.map((t, index) => ({
+                    id: t.id || t._id || index + 1,
+                    name: t.full_name || t.name || "Noma'lum o'qituvchi"
+                })))
+            }
+        } catch (error) {
+            console.error("Error fetching teachers:", error)
+        } finally {
+            setTeachersLoading(false)
+        }
+    }
+
+    const fetchStudents = async () => {
+        setStudentsLoading(true)
+        const token = localStorage.getItem("token")
+        
+        if (!token || token === "undefined" || token === "null") {
+            setStudentsLoading(false)
+            return
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/students", {
+                headers: {
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                }
+            })
+
+            const data = await response.json()
+            if (response.ok) {
+                let list = []
+                if (Array.isArray(data)) list = data
+                else if (Array.isArray(data.data)) list = data.data
+                else if (data.data && Array.isArray(data.data.data)) list = data.data.data
+                else if (Array.isArray(data.students)) list = data.students
+                
+                setStudents(list.map((s, index) => ({
+                    id: s.id || s._id || index + 1,
+                    name: s.full_name || s.name || "Noma'lum talaba"
+                })))
+            }
+        } catch (error) {
+            console.error("Error fetching students:", error)
+        } finally {
+            setStudentsLoading(false)
+        }
+    }
+
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchGroups()
             fetchCourses()
             fetchRooms()
+            fetchTeachers()
+            fetchStudents()
         }, 0)
         return () => clearTimeout(timer)
     }, [])
@@ -361,21 +587,39 @@ export default function Groups() {
 
                     {/* Header */}
                     <div className="flex justify-between items-center mt-[20px] mb-[24px]">
-                        <h2 className="text-[28px] font-[700]">Guruhlar</h2>
-                        <Button 
-                            variant="contained" 
-                            onClick={() => setIsDrawerOpen(true)}
-                            sx={{ 
-                                bgcolor: '#7c3aed', 
-                                textTransform: 'none', 
-                                borderRadius: '10px', 
-                                fontWeight: 600,
-                                px: 3,
-                                '&:hover': { bgcolor: '#6d28d9' }
-                            }}
-                        >
-                            + Guruh qo'shish
-                        </Button>
+                        <h2 className="text-[28px] font-[700]">{activeTab}</h2>
+                        {activeTab === "Guruhlar" && (
+                            <Button 
+                                variant="contained" 
+                                onClick={() => setIsDrawerOpen(true)}
+                                sx={{ 
+                                    bgcolor: '#7c3aed', 
+                                    textTransform: 'none', 
+                                    borderRadius: '10px', 
+                                    fontWeight: 600,
+                                    px: 3,
+                                    '&:hover': { bgcolor: '#6d28d9' }
+                                }}
+                            >
+                                + Guruh qo'shish
+                            </Button>
+                        )}
+                        {activeTab === "Kurslar" && (
+                            <Button 
+                                variant="contained" 
+                                onClick={() => setIsCourseModalOpen(true)}
+                                sx={{ 
+                                    bgcolor: '#7c3aed', 
+                                    textTransform: 'none', 
+                                    borderRadius: '10px', 
+                                    fontWeight: 600,
+                                    px: 3,
+                                    '&:hover': { bgcolor: '#6d28d9' }
+                                }}
+                            >
+                                + Kurs qo'shish
+                            </Button>
+                        )}
                     </div>
 
                     {/* Tabs */}
@@ -617,6 +861,8 @@ export default function Groups() {
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Guruh nomi <span className="text-red-500">*</span></label>
                                 <input 
                                     type="text" 
+                                    value={groupName}
+                                    onChange={(e) => setGroupName(e.target.value)}
                                     placeholder="Frontend 2024"
                                     className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
                                 />
@@ -683,7 +929,15 @@ export default function Groups() {
                                 <div className="grid grid-cols-2 gap-[8px]">
                                     {["Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba", "Yakshanba"].map(day => (
                                         <label key={day} className="flex items-center gap-[8px] p-[10px] border border-gray-100 rounded-[10px] hover:bg-gray-50 cursor-pointer transition-colors">
-                                            <Checkbox size="small" sx={{ p: 0 }} />
+                                            <Checkbox 
+                                                size="small" 
+                                                sx={{ p: 0 }} 
+                                                checked={groupDays.includes(day)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setGroupDays([...groupDays, day])
+                                                    else setGroupDays(groupDays.filter(d => d !== day))
+                                                }}
+                                            />
                                             <span className="text-[13px] font-[500] text-gray-700">{day}</span>
                                         </label>
                                     ))}
@@ -695,11 +949,12 @@ export default function Groups() {
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Dars vaqti <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <input 
-                                        type="text" 
-                                        defaultValue="09:00"
+                                        type="time" 
+                                        value={groupStartTime}
+                                        onChange={(e) => setGroupStartTime(e.target.value)}
                                         className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 font-[500]"
                                     />
-                                    <i className="fa-regular fa-clock absolute right-[14px] top-[12px] text-gray-400"></i>
+                                    <i className="fa-regular fa-clock absolute right-[14px] top-[12px] text-gray-400 pointer-events-none"></i>
                                 </div>
                             </div>
 
@@ -708,11 +963,11 @@ export default function Groups() {
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Boshlanish sanasi <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <input 
-                                        type="text" 
-                                        placeholder="dd/mm/yyyy"
+                                        type="date" 
+                                        value={groupStartDate}
+                                        onChange={(e) => setGroupStartDate(e.target.value)}
                                         className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 font-[500]"
                                     />
-                                    <i className="fa-regular fa-calendar absolute right-[14px] top-[12px] text-gray-400"></i>
                                 </div>
                             </div>
 
@@ -720,6 +975,8 @@ export default function Groups() {
                             <div>
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Tavsif</label>
                                 <textarea 
+                                    value={groupDesc}
+                                    onChange={(e) => setGroupDesc(e.target.value)}
                                     placeholder="Guruh haqida qo'shimcha ma'lumot (ixtiyoriy)"
                                     className="w-full px-[14px] py-[10px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 min-h-[100px] resize-none font-[500]"
                                 ></textarea>
@@ -728,9 +985,9 @@ export default function Groups() {
                             {/* O'qituvchilar */}
                             <div>
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">O'qituvchilar</label>
-                                {selectedTeacher && (
+                                {selectedTeacher && teachers.find(t => t.id === selectedTeacher) && (
                                     <div className="flex items-center justify-between p-[12px] bg-purple-50 rounded-[12px] border border-purple-100 mb-3 group hover:bg-purple-100 transition-colors">
-                                        <span className="text-[14px] font-[600] text-purple-700">{selectedTeacher}</span>
+                                        <span className="text-[14px] font-[600] text-purple-700">{teachers.find(t => t.id === selectedTeacher).name}</span>
                                         <i className="fa-solid fa-xmark text-purple-300 cursor-pointer hover:text-red-500" onClick={() => setSelectedTeacher("")}></i>
                                     </div>
                                 )}
@@ -746,12 +1003,16 @@ export default function Groups() {
                             <div>
                                 <label className="block text-[14px] font-[600] text-gray-800 mb-[8px]">Talabalar</label>
                                 <div className="flex flex-wrap gap-[8px] mb-3">
-                                    {selectedStudents.map(student => (
-                                        <div key={student} className="flex items-center gap-2 bg-gray-50 px-[12px] py-[6px] rounded-full border border-gray-100 text-[13px] font-[500] text-gray-700 group hover:bg-purple-50 hover:border-purple-100 hover:text-purple-700 transition-all">
-                                            {student}
-                                            <i className="fa-solid fa-xmark text-gray-300 cursor-pointer group-hover:text-purple-400 hover:text-red-500" onClick={() => setSelectedStudents(selectedStudents.filter(s => s !== student))}></i>
-                                        </div>
-                                    ))}
+                                    {selectedStudents.map(studentId => {
+                                        const studentObj = students.find(s => s.id === studentId)
+                                        if (!studentObj) return null
+                                        return (
+                                            <div key={studentId} className="flex items-center gap-2 bg-gray-50 px-[12px] py-[6px] rounded-full border border-gray-100 text-[13px] font-[500] text-gray-700 group hover:bg-purple-50 hover:border-purple-100 hover:text-purple-700 transition-all">
+                                                {studentObj.name}
+                                                <i className="fa-solid fa-xmark text-gray-300 cursor-pointer group-hover:text-purple-400 hover:text-red-500" onClick={() => setSelectedStudents(selectedStudents.filter(s => s !== studentId))}></i>
+                                            </div>
+                                        )
+                                    })}
                                 </div>
                                 <button 
                                     onClick={() => setIsStudentModalOpen(true)}
@@ -761,9 +1022,20 @@ export default function Groups() {
                                 </button>
                             </div>
                         </div>
-                        <div className="p-[24px] border-t bg-white flex gap-[12px]">
-                            <button className="flex-1 py-[12px] text-gray-700 font-[600] border border-gray-200 rounded-[12px] hover:bg-gray-50" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
-                            <button className="flex-1 py-[12px] bg-purple-600 text-white font-[600] rounded-[12px] hover:bg-purple-700" onClick={() => setIsDrawerOpen(false)}>Saqlash</button>
+                        <div className="p-[24px] border-t bg-white flex flex-col gap-[12px]">
+                            {groupError && (
+                                <p className="text-[13px] text-red-500 font-[500] text-center">{groupError}</p>
+                            )}
+                            <div className="flex gap-[12px]">
+                                <button className="flex-1 py-[12px] text-gray-700 font-[600] border border-gray-200 rounded-[12px] hover:bg-gray-50" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
+                                <button 
+                                    className={`flex-1 py-[12px] font-[600] rounded-[12px] transition-colors ${groupSaving ? 'bg-purple-400 text-white cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`} 
+                                    onClick={handleSaveGroup}
+                                    disabled={groupSaving}
+                                >
+                                    {groupSaving ? 'Saqlanmoqda...' : 'Saqlash'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -830,6 +1102,106 @@ export default function Groups() {
                 </div>
             )}
 
+            {/* Kurs qo'shish Modal */}
+            {isCourseModalOpen && (
+                <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
+                    <div className="bg-white w-full max-w-[420px] rounded-[24px] shadow-2xl overflow-hidden animate-fade-in">
+                        <div className="p-[24px] relative">
+                            <h3 className="text-[18px] font-[700] text-gray-800 mb-1">Yangi kurs qo'shish</h3>
+                            <p className="text-[13px] text-gray-500 mb-[20px]">Kurs ma'lumotlarini kiriting</p>
+                            <i
+                                className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[18px] hover:text-red-500"
+                                onClick={() => setIsCourseModalOpen(false)}
+                            ></i>
+
+                            <div className="space-y-[12px] mb-[20px] max-h-[60vh] overflow-y-auto pr-[8px]">
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-800 mb-[6px]">Kurs nomi</label>
+                                    <input
+                                        type="text"
+                                        value={courseName}
+                                        onChange={(e) => setCourseName(e.target.value)}
+                                        placeholder="Masalan: Frontend"
+                                        className="w-full px-[14px] py-[8px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-800 mb-[6px]">Dars davomiyligi</label>
+                                    <div className="relative">
+                                        <select
+                                            value={courseTime}
+                                            onChange={(e) => setCourseTime(e.target.value)}
+                                            className="w-full px-[14px] py-[8px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 appearance-none bg-white"
+                                        >
+                                            <option value="">Tanlang</option>
+                                            <option value="60 min">60 min</option>
+                                            <option value="90 min">90 min</option>
+                                            <option value="120 min">120 min</option>
+                                        </select>
+                                        <i className="fa-solid fa-chevron-down absolute right-[14px] top-[14px] text-gray-400 text-[12px]"></i>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-800 mb-[6px]">Davomiyligi (oy)</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={courseDuration}
+                                        onChange={(e) => setCourseDuration(e.target.value)}
+                                        placeholder="Masalan: 6"
+                                        className="w-full px-[14px] py-[8px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-800 mb-[6px]">Narxi (so'm)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={coursePrice}
+                                        onChange={(e) => setCoursePrice(e.target.value)}
+                                        placeholder="Masalan: 500000"
+                                        className="w-full px-[14px] py-[8px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[14px] font-[600] text-gray-800 mb-[6px]">Ta'rif (Description)</label>
+                                    <textarea
+                                        value={courseDesc}
+                                        onChange={(e) => setCourseDesc(e.target.value)}
+                                        placeholder="Kurs haqida ma'lumot..."
+                                        className="w-full px-[14px] py-[8px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 min-h-[80px] resize-none"
+                                    ></textarea>
+                                </div>
+                            </div>
+
+                            {courseError && (
+                                <p className="text-[13px] text-red-500 font-[500] mb-[16px]">{courseError}</p>
+                            )}
+
+                            <div className="flex justify-end gap-[12px]">
+                                <button
+                                    className="px-[20px] py-[10px] text-gray-500 font-[600] hover:text-gray-800"
+                                    onClick={() => setIsCourseModalOpen(false)}
+                                >
+                                    Bekor qilish
+                                </button>
+                                <button
+                                    className={`px-[30px] py-[10px] font-[600] rounded-[12px] transition-colors shadow-md ${courseSaving ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
+                                    onClick={handleSaveCourse}
+                                    disabled={courseSaving}
+                                >
+                                    {courseSaving ? "Saqlanmoqda..." : "Saqlash"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Talaba qo'shish Modal */}
             {isStudentModalOpen && (
                 <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
@@ -851,6 +1223,8 @@ export default function Groups() {
                                     <i className="fa-solid fa-magnifying-glass absolute left-[12px] top-[12px] text-gray-300"></i>
                                     <input 
                                         type="text" 
+                                        value={studentSearchTerm}
+                                        onChange={(e) => setStudentSearchTerm(e.target.value)}
                                         placeholder="Qidirish..."
                                         className="w-full pl-[36px] pr-[12px] py-[10px] bg-white border border-gray-100 rounded-[12px] outline-none text-[14px] focus:border-purple-300 shadow-sm"
                                     />
@@ -858,19 +1232,25 @@ export default function Groups() {
                             </div>
 
                             <div className="space-y-[2px] max-h-[300px] overflow-y-auto mb-[24px] border border-gray-100 rounded-[16px]">
-                                {studentsList.map(student => (
-                                    <label key={student} className="flex items-center gap-[12px] p-[12px] hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0">
-                                        <Checkbox 
-                                            size="small" 
-                                            checked={selectedStudents.includes(student)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) setSelectedStudents([...selectedStudents, student])
-                                                else setSelectedStudents(selectedStudents.filter(s => s !== student))
-                                            }}
-                                        />
-                                        <span className="text-[14px] font-[500] text-gray-700">{student}</span>
-                                    </label>
-                                ))}
+                                {studentsLoading ? (
+                                    <div className="p-4 text-center text-gray-400 text-[13px]">Talabalar yuklanmoqda...</div>
+                                ) : students.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase())).length > 0 ? (
+                                    students.filter(s => s.name.toLowerCase().includes(studentSearchTerm.toLowerCase())).map(student => (
+                                        <label key={student.id} className="flex items-center gap-[12px] p-[12px] hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0">
+                                            <Checkbox 
+                                                size="small" 
+                                                checked={selectedStudents.includes(student.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setSelectedStudents([...selectedStudents, student.id])
+                                                    else setSelectedStudents(selectedStudents.filter(s => s !== student.id))
+                                                }}
+                                            />
+                                            <span className="text-[14px] font-[500] text-gray-700">{student.name}</span>
+                                        </label>
+                                    ))
+                                ) : (
+                                    <div className="p-4 text-center text-gray-400 text-[13px]">Talaba topilmadi</div>
+                                )}
                             </div>
 
                             <div className="flex justify-end gap-[12px]">
@@ -903,6 +1283,8 @@ export default function Groups() {
                                     <i className="fa-solid fa-magnifying-glass absolute left-[12px] top-[12px] text-gray-300"></i>
                                     <input 
                                         type="text" 
+                                        value={teacherSearchTerm}
+                                        onChange={(e) => setTeacherSearchTerm(e.target.value)}
                                         placeholder="Qidirish..."
                                         className="w-full pl-[36px] pr-[12px] py-[10px] bg-white border border-gray-100 rounded-[12px] outline-none text-[14px] focus:border-purple-300 shadow-sm"
                                     />
@@ -910,17 +1292,23 @@ export default function Groups() {
                             </div>
 
                             <div className="space-y-[2px] max-h-[300px] overflow-y-auto mb-[24px] border border-gray-100 rounded-[16px]">
-                                {teachersList.map(teacher => (
-                                    <label key={teacher} className="flex items-center gap-[12px] p-[12px] hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0">
-                                        <Radio 
-                                            size="small" 
-                                            checked={selectedTeacher === teacher}
-                                            onChange={() => setSelectedTeacher(teacher)}
-                                            sx={{ color: '#d1d5db', '&.Mui-checked': { color: '#7c3aed' } }}
-                                        />
-                                        <span className="text-[14px] font-[500] text-gray-700">{teacher}</span>
-                                    </label>
-                                ))}
+                                {teachersLoading ? (
+                                    <div className="p-4 text-center text-gray-400 text-[13px]">O'qituvchilar yuklanmoqda...</div>
+                                ) : teachers.filter(t => t.name.toLowerCase().includes(teacherSearchTerm.toLowerCase())).length > 0 ? (
+                                    teachers.filter(t => t.name.toLowerCase().includes(teacherSearchTerm.toLowerCase())).map(teacher => (
+                                        <label key={teacher.id} className="flex items-center gap-[12px] p-[12px] hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0">
+                                            <Radio 
+                                                size="small" 
+                                                checked={selectedTeacher === teacher.id}
+                                                onChange={() => setSelectedTeacher(teacher.id)}
+                                                sx={{ color: '#d1d5db', '&.Mui-checked': { color: '#7c3aed' } }}
+                                            />
+                                            <span className="text-[14px] font-[500] text-gray-700">{teacher.name}</span>
+                                        </label>
+                                    ))
+                                ) : (
+                                    <div className="p-4 text-center text-gray-400 text-[13px]">O'qituvchi topilmadi</div>
+                                )}
                             </div>
 
                             <div className="flex justify-end gap-[12px]">

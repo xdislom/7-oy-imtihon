@@ -113,6 +113,28 @@ const formatDate = (value) => {
     return date.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+const formatDateTime = (value) => {
+    if (!value) return "Noma'lum"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    const day = date.getDate()
+    const month = date.toLocaleDateString('en-US', { month: 'short' })
+    const year = date.getFullYear()
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${day} ${month}, ${year} ${hours}:${minutes}`
+}
+
+const formatDateOnly = (value) => {
+    if (!value) return "Noma'lum"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    const day = date.getDate()
+    const month = date.toLocaleDateString('en-US', { month: 'short' })
+    const year = date.getFullYear()
+    return `${day} ${month}, ${year}`
+}
+
 const formatScheduleRange = (schedule, group) => {
     const start = schedule.start_date || schedule.startDate || schedule.from_date || schedule.fromDate || schedule.start || schedule.group?.start_date || schedule.group?.startDate || group?.startDate
     const end = schedule.end_date || schedule.endDate || schedule.to_date || schedule.toDate || schedule.end || schedule.group?.end_date || schedule.group?.endDate || group?.endDate
@@ -244,18 +266,61 @@ const getScheduleDates = (schedules, group) => {
     return getScheduleMonths(schedules, group)[0]?.dates.slice(0, 13) || []
 }
 
-const DateChip = ({ scheduleDate, muted }) => {
+const DateChip = ({ scheduleDate, onClick, isSelected }) => {
     const parsed = new Date(scheduleDate)
     const isValid = !Number.isNaN(parsed.getTime())
     const month = isValid ? parsed.toLocaleDateString('en-US', { month: 'short' }) : ""
     const day = isValid ? parsed.getDate() : scheduleDate
 
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    parsed.setHours(0, 0, 0, 0)
+
+    const isPast = isValid && parsed < today
+    const isToday = isValid && parsed.getTime() === today.getTime()
+    const isFuture = isValid && parsed > today
+
+    let chipClass = ''
+    let labelClass = ''
+    let dayClass = ''
+    let cursor = 'cursor-default'
+
+    if (isSelected && isToday) {
+        chipClass = 'bg-[#00b87c] border-[#00b87c] shadow-lg ring-2 ring-[#00b87c]/30'
+        labelClass = 'text-white opacity-80'
+        dayClass = 'text-white'
+        cursor = 'cursor-pointer'
+    } else if (isToday) {
+        chipClass = 'bg-[#00b87c] border-[#00b87c] shadow-md'
+        labelClass = 'text-white opacity-80'
+        dayClass = 'text-white'
+        cursor = 'cursor-pointer'
+    } else if (isSelected && isPast) {
+        chipClass = 'bg-[#475569] border-[#475569] shadow-lg ring-2 ring-[#475569]/30'
+        labelClass = 'text-white'
+        dayClass = 'text-white'
+        cursor = 'cursor-pointer'
+    } else if (isPast) {
+        chipClass = 'bg-[#b0b8c1] border-[#b0b8c1] opacity-70 hover:opacity-100 hover:bg-[#8a95a0] hover:border-[#8a95a0]'
+        labelClass = 'text-[#5a6370]'
+        dayClass = 'text-[#3d4550]'
+        cursor = 'cursor-pointer'
+    } else {
+        // future
+        chipClass = 'bg-white border-gray-200 opacity-60'
+        labelClass = 'text-gray-400'
+        dayClass = 'text-gray-400'
+        cursor = 'cursor-not-allowed'
+    }
+
     return (
         <button
-            className={`w-[64px] h-[70px] rounded-[10px] border text-center font-[800] flex flex-col items-center justify-center ${muted ? 'bg-slate-200 border-slate-200 text-slate-500' : 'bg-white border-gray-200 text-gray-500'}`}
+            onClick={!isFuture ? onClick : undefined}
+            disabled={isFuture}
+            className={`w-[64px] h-[70px] rounded-[10px] border text-center font-[800] flex flex-col items-center justify-center transition-all ${chipClass} ${cursor}`}
         >
-            <span className="block text-[13px] leading-[18px]">{month}</span>
-            <span className="block text-[20px] leading-[24px]">{day}</span>
+            <span className={`block text-[13px] leading-[18px] ${labelClass}`}>{month}</span>
+            <span className={`block text-[20px] leading-[24px] ${dayClass}`}>{day}</span>
         </button>
     )
 }
@@ -268,6 +333,7 @@ export default function GroupDetail() {
     const [group, setGroup] = useState(null)
     const [schedules, setSchedules] = useState([])
     const [lessons, setLessons] = useState([])
+    const [homeworkLoading, setHomeworkLoading] = useState(false)
     const [date, setDate] = useState("2026-05-12")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
@@ -277,6 +343,13 @@ export default function GroupDetail() {
     const [activeTab, setActiveTab] = useState("info")
     const [activeLessonsTab, setActiveLessonsTab] = useState("homework")
     const [isMentorsModalOpen, setIsMentorsModalOpen] = useState(false)
+    const [selectedDate, setSelectedDate] = useState(null)
+    const [lessonType, setLessonType] = useState("boshqa")
+    const [mavzu, setMavzu] = useState("")
+    const [tavsif, setTavsif] = useState("")
+    const [groupStudents, setGroupStudents] = useState([])
+    const [studentsLoading, setStudentsLoading] = useState(false)
+    const [attendance, setAttendance] = useState({})
 
     const token = localStorage.getItem("token")
 
@@ -330,6 +403,39 @@ export default function GroupDetail() {
         { id: 4, name: "Axmadjon", role: "Teacher" }
     ]
 
+    const fetchGroupStudents = async () => {
+        if (!token || token === "undefined" || token === "null") return
+        setStudentsLoading(true)
+        try {
+            // Avval guruh talabalarini to'g'ridan olishga urinib ko'ramiz
+            const headers = { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` }
+            const res = await fetch(`${API_URL}/students?group_id=${groupId}`, { headers })
+            if (res.ok) {
+                const data = await res.json()
+                const list = findArray(data)
+                const filtered = list.filter(s => {
+                    if (!Array.isArray(s.groups)) return true
+                    return s.groups.some(g => String(g.id || g) === String(groupId))
+                })
+                const normalized = (filtered.length > 0 ? filtered : list).map((s, idx) => ({
+                    id: s.id || s._id || idx + 1,
+                    name: s.full_name || s.name || "Noma'lum",
+                    initial: (s.full_name || s.name || 'S').charAt(0).toUpperCase(),
+                    avatar: s.avatar || s.photo || null
+                }))
+                setGroupStudents(normalized)
+                // Barcha talabalar uchun attendance false bilan initsializatsiya
+                const init = {}
+                normalized.forEach(s => { init[s.id] = false })
+                setAttendance(init)
+            }
+        } catch (err) {
+            console.error('Students fetch error:', err)
+        } finally {
+            setStudentsLoading(false)
+        }
+    }
+
     const fetchGroupInfo = async () => {
         if (!token || token === "undefined" || token === "null") {
             navigate("/")
@@ -344,15 +450,13 @@ export default function GroupDetail() {
                 "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
             }
 
-            const [groupResponse, schedulesResponse, homeworkResponse] = await Promise.all([
+            const [groupResponse, schedulesResponse] = await Promise.all([
                 fetch(`${API_URL}/groups/${groupId}`, { headers }),
-                fetch(`${API_URL}/groups/${groupId}/schedules`, { headers }),
-                fetch(`${API_URL}/homework/${groupId}`, { headers }).catch(() => null)
+                fetch(`${API_URL}/groups/${groupId}/schedules`, { headers })
             ])
 
             const groupData = await groupResponse.json()
             const schedulesData = await schedulesResponse.json()
-            const homeworkData = homeworkResponse ? await homeworkResponse.json() : null
 
             if (groupResponse.status === 401 || schedulesResponse.status === 401) {
                 localStorage.removeItem("token")
@@ -372,19 +476,51 @@ export default function GroupDetail() {
             const fallbackGroup = savedGroup && String(savedGroup.id) === String(groupId) ? normalizeGroup(savedGroup) : null
             setGroup(mergeGroupData(normalizeGroup(findObject(groupData)), fallbackGroup))
             setSchedules(normalizeLessons(schedulesData))
-            if (homeworkData && findArray(homeworkData).length > 0) {
-                setLessons(findArray(homeworkData))
-            } else {
-                setLessons(mockLessons)
-            }
+
+            // Homework ma'lumotlarini alohida yuklash
+            fetchHomework(headers)
         } catch (error) {
             console.error("Error fetching group detail:", error)
             setError(error.message || "Server bilan bog'lanishda xatolik!")
-            setLessons(mockLessons)
         } finally {
             setLoading(false)
         }
     }
+
+    const fetchHomework = async (existingHeaders) => {
+        const headers = existingHeaders || {
+            "Authorization": `Bearer ${(token || '').replace(/^Bearer\s+/i, '')}`
+        }
+        setHomeworkLoading(true)
+        try {
+            const res = await fetch(`${API_URL}/homework/all?group_id=${groupId}`, { headers })
+            if (res.ok) {
+                const data = await res.json()
+                const list = findArray(data)
+                if (list.length > 0) {
+                    setLessons(list)
+                } else {
+                    setLessons(mockLessons)
+                }
+            } else if (res.status === 401) {
+                localStorage.removeItem("token")
+                navigate("/")
+            } else {
+                setLessons(mockLessons)
+            }
+        } catch (err) {
+            console.error("Homework fetch error:", err)
+            setLessons(mockLessons)
+        } finally {
+            setHomeworkLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        if (selectedDate) {
+            fetchGroupStudents()
+        }
+    }, [selectedDate])
 
     useEffect(() => {
         if (location.pathname.startsWith("/dashboard/groups/")) {
@@ -596,10 +732,181 @@ export default function GroupDetail() {
                                                         <DateChip
                                                             key={`${scheduleDate}-${index}`}
                                                             scheduleDate={scheduleDate}
-                                                            muted={index < 7}
+                                                            isSelected={selectedDate === scheduleDate}
+                                                            onClick={() => {
+                                                                setSelectedDate(prev => prev === scheduleDate ? null : scheduleDate)
+                                                            }}
                                                         />
                                                     ))}
                                                 </div>
+
+                                                {/* Tanlangan sana uchun Ma'lumot paneli */}
+                                                {selectedDate && (
+                                                    <div className="mt-[28px] space-y-[16px] animate-fade-in">
+                                                        {/* Ma'lumot kartasi */}
+                                                        <div className="bg-white border border-gray-200 rounded-[14px] overflow-hidden">
+                                                            <div className="flex items-center justify-between px-[22px] py-[16px] border-b border-gray-100">
+                                                                <h4 className="text-[16px] font-[800] text-gray-900">Ma'lumot</h4>
+                                                                <i className="fa-solid fa-chevron-right text-gray-400 text-[13px]"></i>
+                                                            </div>
+                                                            <div className="px-[22px] py-[20px] flex items-center gap-[16px]">
+                                                                <div className="w-[44px] h-[44px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-[700] text-[18px] flex-shrink-0">
+                                                                    {(mentors[0]?.name?.charAt(0) || 'M')}
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <p className="text-[15px] font-[800] text-gray-900">{mentors[0]?.name || "Mohirbek"}</p>
+                                                                    <p className="text-[13px] text-gray-400 font-[500]">Teacher</p>
+                                                                </div>
+                                                                <div className="flex gap-[32px]">
+                                                                    <div>
+                                                                        <p className="text-[12px] text-gray-400 font-[500] mb-[2px]">Dars kuni</p>
+                                                                        <p className="text-[14px] font-[700] text-gray-800">
+                                                                            {new Date(selectedDate).toLocaleDateString('uz-UZ', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[12px] text-gray-400 font-[500] mb-[2px]">Holat</p>
+                                                                        <p className="text-[14px] font-[700] text-blue-500">Dars o'tilmagan</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Yo'qlama va mavzu kiritish */}
+                                                        <div className="bg-white border border-gray-200 rounded-[14px] overflow-hidden">
+                                                            <div className="px-[22px] py-[16px] border-b border-gray-100">
+                                                                <h4 className="text-[16px] font-[800] text-gray-900">Yo'qlama va mavzu kiritish</h4>
+                                                            </div>
+                                                            <div className="px-[22px] py-[20px] space-y-[20px]">
+                                                                {/* Radio tugmalar */}
+                                                                <div className="flex items-center gap-[24px]">
+                                                                    <label className="flex items-center gap-[8px] cursor-pointer">
+                                                                        <div
+                                                                            onClick={() => setLessonType('reja')}
+                                                                            className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all ${
+                                                                                lessonType === 'reja'
+                                                                                    ? 'border-[#00b87c]'
+                                                                                    : 'border-gray-300'
+                                                                            }`}
+                                                                        >
+                                                                            {lessonType === 'reja' && <div className="w-[8px] h-[8px] rounded-full bg-[#00b87c]"></div>}
+                                                                        </div>
+                                                                        <span className="text-[14px] font-[600] text-gray-700">O'quv reja bo'yicha</span>
+                                                                    </label>
+                                                                    <label className="flex items-center gap-[8px] cursor-pointer">
+                                                                        <div
+                                                                            onClick={() => setLessonType('boshqa')}
+                                                                            className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all ${
+                                                                                lessonType === 'boshqa'
+                                                                                    ? 'border-[#00b87c]'
+                                                                                    : 'border-gray-300'
+                                                                            }`}
+                                                                        >
+                                                                            {lessonType === 'boshqa' && <div className="w-[8px] h-[8px] rounded-full bg-[#00b87c]"></div>}
+                                                                        </div>
+                                                                        <span className="text-[14px] font-[700] text-[#00b87c]">Boshqa</span>
+                                                                    </label>
+                                                                </div>
+
+                                                                {/* Mavzu */}
+                                                                <div>
+                                                                    <label className="block text-[13px] font-[700] text-red-500 mb-[8px]">* Mavzu</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={mavzu}
+                                                                        onChange={e => setMavzu(e.target.value)}
+                                                                        placeholder="Mavzuni kiriting..."
+                                                                        className="w-full px-[14px] py-[11px] border border-gray-200 rounded-[10px] outline-none focus:border-[#00b87c] text-[14px] font-[500] transition-colors"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Tavsif */}
+                                                                <div>
+                                                                    <label className="block text-[13px] font-[700] text-gray-700 mb-[8px]">Tavsif <span className="text-gray-400 font-[400]">(Ixtiyoriy)</span></label>
+                                                                    <textarea
+                                                                        value={tavsif}
+                                                                        onChange={e => setTavsif(e.target.value)}
+                                                                        placeholder="Tavsif kiriting..."
+                                                                        rows={3}
+                                                                        className="w-full px-[14px] py-[11px] border border-gray-200 rounded-[10px] outline-none focus:border-[#00b87c] text-[14px] font-[500] resize-none transition-colors"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Talabalar yo'qlama jadvali */}
+                                                                <div>
+                                                                    {studentsLoading ? (
+                                                                        <div className="py-[20px] text-center text-gray-400 text-[14px] font-[600]">
+                                                                            <i className="fa-solid fa-spinner animate-spin mr-2"></i>
+                                                                            Talabalar yuklanmoqda...
+                                                                        </div>
+                                                                    ) : groupStudents.length > 0 ? (
+                                                                        <table className="w-full border-collapse">
+                                                                            <thead>
+                                                                                <tr className="border-b border-gray-100">
+                                                                                    <th className="py-[10px] px-[12px] text-left text-[12px] font-[700] text-gray-400">#</th>
+                                                                                    <th className="py-[10px] px-[12px] text-left text-[12px] font-[700] text-blue-500">O'quvchi ismi</th>
+                                                                                    <th className="py-[10px] px-[12px] text-right text-[12px] font-[700] text-gray-400">Keldi</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                {groupStudents.map((student, idx) => (
+                                                                                    <tr key={student.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                                                                        <td className="py-[12px] px-[12px] text-[13px] font-[600] text-gray-500">{idx + 1}</td>
+                                                                                        <td className="py-[12px] px-[12px]">
+                                                                                            <div className="flex items-center gap-[10px]">
+                                                                                                <div className="w-[32px] h-[32px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-[700] text-[13px] flex-shrink-0 overflow-hidden">
+                                                                                                    {student.avatar
+                                                                                                        ? <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+                                                                                                        : student.initial
+                                                                                                    }
+                                                                                                </div>
+                                                                                                <span className="text-[14px] font-[600] text-gray-800">{student.name}</span>
+                                                                                            </div>
+                                                                                        </td>
+                                                                                        <td className="py-[12px] px-[12px] text-right">
+                                                                                            <button
+                                                                                                onClick={() => setAttendance(prev => ({ ...prev, [student.id]: !prev[student.id] }))}
+                                                                                                className={`relative inline-flex items-center w-[44px] h-[24px] rounded-full transition-all duration-300 focus:outline-none ${
+                                                                                                    attendance[student.id]
+                                                                                                        ? 'bg-[#7c3aed]'
+                                                                                                        : 'bg-gray-200'
+                                                                                                }`}
+                                                                                            >
+                                                                                                <span className={`inline-block w-[18px] h-[18px] rounded-full bg-white shadow-sm transform transition-transform duration-300 ${
+                                                                                                    attendance[student.id] ? 'translate-x-[22px]' : 'translate-x-[3px]'
+                                                                                                }`}></span>
+                                                                                            </button>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                ))}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    ) : (
+                                                                        <div className="py-[16px] text-center text-gray-400 text-[13px] font-[500]">
+                                                                            Bu guruhda talabalar topilmadi
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Saqlash tugmasi */}
+                                                                <div className="flex justify-end gap-[12px] pt-[4px]">
+                                                                    <button
+                                                                        onClick={() => setSelectedDate(null)}
+                                                                        className="px-[20px] py-[10px] border border-gray-200 rounded-[10px] text-gray-600 font-[700] hover:bg-gray-50 transition-colors"
+                                                                    >
+                                                                        Bekor qilish
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setSelectedDate(null)}
+                                                                        className="px-[24px] py-[10px] bg-[#00b87c] hover:bg-[#009e6a] text-white font-[700] rounded-[10px] transition-colors"
+                                                                    >
+                                                                        Saqlash
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 <div className="flex justify-center mt-[42px]">
                                                     <button
@@ -627,7 +934,11 @@ export default function GroupDetail() {
                                                                 <DateChip
                                                                     key={`${month.label}-${scheduleDate}`}
                                                                     scheduleDate={scheduleDate}
-                                                                    muted={month.isCurrent && index < 7}
+                                                                    isSelected={selectedDate === scheduleDate}
+                                                                    onClick={() => {
+                                                                        setSelectedDate(prev => prev === scheduleDate ? null : scheduleDate)
+                                                                        setShowAllDates(false)
+                                                                    }}
                                                                 />
                                                             ))}
                                                         </div>
@@ -708,48 +1019,66 @@ export default function GroupDetail() {
 
                                 {activeLessonsTab === "homework" && (
                                     <>
-                                        {lessons.length > 0 ? (
+                                        {homeworkLoading ? (
+                                            <div className="border border-gray-100 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
+                                                <i className="fa-solid fa-spinner fa-spin mr-[8px]"></i>
+                                                Uyga vazifalar yuklanmoqda...
+                                            </div>
+                                        ) : lessons.length > 0 ? (
                                             <div className="overflow-x-auto">
                                                 <table className="w-full">
                                                     <thead>
-                                                        <tr className="border-b border-gray-200 bg-gray-50">
-                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">#</th>
-                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">Mavzu</th>
-                                                            <th className="px-[16px] py-[14px] text-left text-yellow-500 font-[600] text-[13px]">
-                                                                <i className="fa-solid fa-clock"></i>
+                                                        <tr className="border-b border-gray-200">
+                                                            <th className="px-[20px] py-[14px] text-left text-gray-500 font-[600] text-[13px] w-[40px]">#</th>
+                                                            <th className="px-[20px] py-[14px] text-left text-teal-500 font-[700] text-[13px]">Mavzu</th>
+                                                            <th className="px-[20px] py-[14px] text-left text-gray-400 font-[500] text-[17px] w-[56px]">
+                                                                <i className="fa-regular fa-user"></i>
                                                             </th>
-                                                            <th className="px-[16px] py-[14px] text-left text-teal-500 font-[600] text-[13px]">
-                                                                <i className="fa-solid fa-check"></i>
+                                                            <th className="px-[20px] py-[14px] text-left text-yellow-400 font-[500] text-[17px] w-[56px]">
+                                                                <i className="fa-regular fa-clock"></i>
                                                             </th>
-                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">Berilan vaqt</th>
-                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">Tugash vaqti</th>
-                                                            <th className="px-[16px] py-[14px] text-left text-gray-500 font-[600] text-[13px]">Dars sanasi</th>
+                                                            <th className="px-[20px] py-[14px] text-left w-[56px]">
+                                                                <span className="inline-flex items-center justify-center w-[20px] h-[20px] rounded-full border-2 border-teal-500">
+                                                                    <i className="fa-solid fa-check text-teal-500 text-[10px]"></i>
+                                                                </span>
+                                                            </th>
+                                                            <th className="px-[20px] py-[14px] text-left text-gray-700 font-[600] text-[13px]">Berilgan vaqt</th>
+                                                            <th className="px-[20px] py-[14px] text-left text-gray-700 font-[600] text-[13px]">Tugash vaqti</th>
+                                                            <th className="px-[20px] py-[14px] text-left text-gray-700 font-[600] text-[13px]">Dars sanasi</th>
+                                                            <th className="px-[16px] py-[14px] w-[40px]"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         {lessons.map((lesson, index) => (
                                                             <tr key={lesson.id || index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                                                <td className="px-[16px] py-[16px] text-left text-gray-900 font-[600] text-[14px]">{index + 1}</td>
-                                                                <td className="px-[16px] py-[16px] text-left text-gray-900 font-[600] text-[14px]">
-                                                                    {getName(lesson.title || lesson.name || lesson.subject || lesson.lesson_name || lesson.lessonName, "Dars nomi")}
+                                                                <td className="px-[20px] py-[20px] text-gray-500 font-[500] text-[14px]">
+                                                                    {index + 1}
                                                                 </td>
-                                                                <td className="px-[16px] py-[16px] text-left">
-                                                                    <span className="text-gray-900 font-[600] text-[14px]">{lesson.submitted || 5}</span>
+                                                                <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
+                                                                    {lesson.title || lesson.name || lesson.subject || lesson.lesson_name || lesson.lessonName || "—"}
                                                                 </td>
-                                                                <td className="px-[16px] py-[16px] text-left">
-                                                                    <span className="text-gray-900 font-[600] text-[14px]">{lesson.late || 0}</span>
+                                                                <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
+                                                                    {lesson.submitted ?? lesson.students_count ?? 5}
                                                                 </td>
-                                                                <td className="px-[16px] py-[16px] text-left">
-                                                                    <span className="text-gray-900 font-[600] text-[14px]">{lesson.completed || 0}</span>
+                                                                <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
+                                                                    {lesson.late ?? lesson.late_count ?? 0}
                                                                 </td>
-                                                                <td className="px-[16px] py-[16px] text-left text-gray-600 font-[600] text-[14px]">
-                                                                    {formatDate(lesson.created_at || lesson.createdAt || lesson.given_date || lesson.givenDate || lesson.start_date)}
+                                                                <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
+                                                                    {lesson.completed ?? lesson.completed_count ?? 0}
                                                                 </td>
-                                                                <td className="px-[16px] py-[16px] text-left text-gray-600 font-[600] text-[14px]">
-                                                                    {formatDate(lesson.end_date || lesson.endDate || lesson.due_date || lesson.dueDate || lesson.deadline)}
+                                                                <td className="px-[20px] py-[20px] text-gray-600 font-[400] text-[14px]">
+                                                                    {formatDateTime(lesson.created_at || lesson.createdAt || lesson.given_date || lesson.givenDate || lesson.start_date)}
                                                                 </td>
-                                                                <td className="px-[16px] py-[16px] text-left text-gray-600 font-[600] text-[14px]">
-                                                                    {formatDate(lesson.lesson_date || lesson.lessonDate || lesson.date)}
+                                                                <td className="px-[20px] py-[20px] text-gray-600 font-[400] text-[14px]">
+                                                                    {formatDateTime(lesson.end_date || lesson.endDate || lesson.due_date || lesson.dueDate || lesson.deadline)}
+                                                                </td>
+                                                                <td className="px-[20px] py-[20px] text-gray-600 font-[400] text-[14px]">
+                                                                    {formatDateTime(lesson.lesson_date || lesson.lessonDate || lesson.date)}
+                                                                </td>
+                                                                <td className="px-[16px] py-[20px] text-right">
+                                                                    <button className="w-[28px] h-[28px] flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors ml-auto text-gray-400 hover:text-gray-700">
+                                                                        <i className="fa-solid fa-ellipsis-vertical text-[15px]"></i>
+                                                                    </button>
                                                                 </td>
                                                             </tr>
                                                         ))}

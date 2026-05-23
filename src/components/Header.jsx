@@ -99,7 +99,7 @@ export default function Header({ onMenuClick }) {
                     <i className="fa-solid fa-bars"></i>
                 </IconButton>
                 
-                <div className="hidden md:flex items-center gap-[15px] ml-[300px]">
+                <div className="hidden md:flex items-center gap-[15px]">
                     <button className="flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
                         <i className="fa-regular fa-calendar text-[22px]"></i>
                     </button>
