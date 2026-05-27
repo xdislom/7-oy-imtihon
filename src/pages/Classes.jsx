@@ -97,20 +97,52 @@ const formatDuration = (group) => {
     return `${duration} oy`
 }
 
+const normalizeWeekDays = (value) => {
+    const dayMap = {
+        MONDAY: "Dushanba",
+        TUESDAY: "Seshanba",
+        WEDNESDAY: "Chorshanba",
+        THURSDAY: "Payshanba",
+        FRIDAY: "Juma",
+        SATURDAY: "Shanba",
+        SUNDAY: "Yakshanba"
+    }
+
+    if (Array.isArray(value)) {
+        return value.map(item => dayMap[String(item).toUpperCase()] || String(item)).filter(Boolean)
+    }
+
+    if (typeof value === 'string') {
+        return value
+            .split(',')
+            .map(item => item.trim())
+            .map(item => dayMap[item.toUpperCase()] || item)
+            .filter(Boolean)
+    }
+
+    return []
+}
+
 const normalizeGroup = (group, index) => ({
     id: group.id || group._id || index + 1,
     status: group.status === undefined ? true : Boolean(group.status),
     name: group.name || group.title || group.group_name || "Noma'lum guruh",
     course: getName(group.course || group.subject || group.direction, "Noma'lum"),
+    courseId: group.course_id || group.course?.id || group.courseId || null,
     duration: formatDuration(group),
     time: group.time || group.lesson_time || group.start_time || "Noma'lum",
     days: formatDays(group.days || group.lesson_days || group.week_days || group.week_day),
+    weekDays: normalizeWeekDays(group.days || group.lesson_days || group.week_days || group.week_day),
     room: getName(group.room || group.classroom || group.room_name || group.roomName, "Noma'lum"),
+    roomId: group.room_id || group.room?.id || group.roomId || null,
     teacher: getName(group.teacher || group.mentor || group.teachers?.[0], "Noma'lum"),
+    teacherId: group.teacher_id || group.teacher?.id || group.mentor_id || group.teachers?.[0]?.id || null,
     students: getCount(group.students || group.student_count || group.students_count),
+    studentIds: Array.isArray(group.students_list) ? group.students_list.map(item => item.id || item) : [],
     maxStudent: group.max_student || group.maxStudent || group.room?.capacity || group.capacity || 0,
     startDate: group.start_date || group.startDate || group.begin_date || group.beginDate,
-    endDate: group.end_date || group.endDate || group.finish_date || group.finishDate
+    endDate: group.end_date || group.endDate || group.finish_date || group.finishDate,
+    description: group.description || group.desc || ""
 })
 
 const normalizeRoom = (room, index) => ({
@@ -184,6 +216,7 @@ export default function Groups() {
     const [groupDesc, setGroupDesc] = useState("")
     const [groupSaving, setGroupSaving] = useState(false)
     const [groupError, setGroupError] = useState("")
+    const [editingGroup, setEditingGroup] = useState(null)
 
     const [activeMenu, setActiveMenu] = useState(null)
     const [groupToDelete, setGroupToDelete] = useState(null)
@@ -422,6 +455,34 @@ export default function Groups() {
         }
     }
 
+    const resetGroupForm = () => {
+        setGroupName("")
+        setSelectedCourseId("")
+        setSelectedRoomId("")
+        setGroupDays([])
+        setGroupStartTime("09:00")
+        setGroupStartDate("")
+        setGroupDesc("")
+        setSelectedTeacher("")
+        setSelectedStudents([])
+        setEditingGroup(null)
+        setGroupError("")
+    }
+
+    const openEditGroup = (group) => {
+        setEditingGroup(group)
+        setGroupName(group.name || "")
+        setSelectedCourseId(String(group.courseId || ""))
+        setSelectedRoomId(String(group.roomId || ""))
+        setGroupDays(Array.isArray(group.weekDays) ? group.weekDays : (group.days ? String(group.days).split(',').map(item => item.trim()) : []))
+        setGroupStartTime(group.time && group.time !== "Noma'lum" ? group.time : "09:00")
+        setGroupStartDate(group.startDate || "")
+        setGroupDesc(group.description || "")
+        setSelectedTeacher(String(group.teacherId || ""))
+        setSelectedStudents(Array.isArray(group.studentIds) && group.studentIds.length ? group.studentIds.map(String) : [])
+        setIsDrawerOpen(true)
+    }
+
     const handleSaveGroup = async () => {
         if (!groupName.trim() || !selectedCourseId || !selectedRoomId || groupDays.length === 0 || !groupStartTime || !groupStartDate) {
             setGroupError("Barcha majburiy maydonlarni to'ldiring")
@@ -462,10 +523,14 @@ export default function Groups() {
                 payload.students = selectedStudents.map(Number)
             }
 
-            console.log("Guruh yaratish payload:", JSON.stringify(payload, null, 2))
+            const isUpdate = !!editingGroup
+            const method = isUpdate ? "PATCH" : "POST"
+            const url = isUpdate
+                ? `https://najot-edu.softwareengineer.uz/api/v1/groups/${editingGroup.id}`
+                : "https://najot-edu.softwareengineer.uz/api/v1/groups"
 
-            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/groups", {
-                method: "POST",
+            const response = await fetch(url, {
+                method,
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
@@ -473,28 +538,19 @@ export default function Groups() {
                 body: JSON.stringify(payload)
             })
 
-            const data = await response.json()
-            console.log("API javobi:", data)
+            const data = await response.json().catch(() => ({}))
 
             if (!response.ok) {
-                const errMsg = Array.isArray(data.message) ? data.message.join(", ") : (data.message || "Guruh qo'shishda xatolik yuz berdi")
+                const errMsg = Array.isArray(data.message) ? data.message.join(", ") : (data.message || (isUpdate ? "Guruhni yangilashda xatolik yuz berdi" : "Guruh qo'shishda xatolik yuz berdi"))
                 throw new Error(errMsg)
             }
 
-            setGroupName("")
-            setSelectedCourseId("")
-            setSelectedRoomId("")
-            setGroupDays([])
-            setGroupStartTime("09:00")
-            setGroupStartDate("")
-            setGroupDesc("")
-            setSelectedTeacher("")
-            setSelectedStudents([])
+            resetGroupForm()
             setIsDrawerOpen(false)
             fetchGroups()
         } catch (error) {
             console.error("Error saving group:", error)
-            setGroupError(error.message || "Guruh qo'shishda xatolik!")
+            setGroupError(error.message || "Guruh saqlashda xatolik!")
         } finally {
             setGroupSaving(false)
         }
@@ -810,6 +866,16 @@ export default function Groups() {
                                                 
                                                 {activeMenu === group.id && (
                                                     <div className="absolute right-[30px] top-[40px] bg-white shadow-lg border border-gray-100 rounded-[12px] z-[50] py-[8px] min-w-[160px] animate-fade-in">
+                                                        <button
+                                                            className="w-full text-left px-[16px] py-[10px] text-[13px] font-[600] text-purple-700 hover:bg-purple-50 transition-colors flex items-center gap-[10px]"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveMenu(null);
+                                                                openEditGroup(group);
+                                                            }}
+                                                        >
+                                                            <i className="fa-solid fa-pen-to-square"></i> Guruhni tahrirlash
+                                                        </button>
                                                         <button 
                                                             className="w-full text-left px-[16px] py-[10px] text-[13px] font-[600] text-red-500 hover:bg-red-50 transition-colors flex items-center gap-[10px]"
                                                             onClick={(e) => {
@@ -939,18 +1005,18 @@ export default function Groups() {
             {isDrawerOpen && (
                 <div 
                     className="fixed inset-0 bg-black/20 z-[200] flex justify-end"
-                    onClick={() => setIsDrawerOpen(false)}
+                    onClick={() => { setIsDrawerOpen(false); resetGroupForm(); }}
                 >
                     <div 
                         className="w-[450px] h-full bg-white shadow-2xl flex flex-col animate-slide-in"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="p-[24px] border-b relative">
-                            <h3 className="text-[20px] font-[700] mb-1">Guruh qo'shish</h3>
-                            <p className="text-[13px] text-gray-500">Yangi guruh yaratish uchun quyidagi ma'lumotlarni kiriting.</p>
+                            <h3 className="text-[20px] font-[700] mb-1">{editingGroup ? 'Guruhni yangilash' : 'Guruh qo\'shish'}</h3>
+                            <p className="text-[13px] text-gray-500">{editingGroup ? 'Mavjud guruh ma\'lumotlarini yangilang.' : 'Yangi guruh yaratish uchun quyidagi ma\'lumotlarni kiriting.'}</p>
                             <i 
                                 className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[20px] hover:text-red-500"
-                                onClick={() => setIsDrawerOpen(false)}
+                                onClick={() => { setIsDrawerOpen(false); resetGroupForm(); }}
                             ></i>
                         </div>
                         <div className="flex-1 overflow-y-auto p-[24px] space-y-[20px]">
@@ -1125,13 +1191,13 @@ export default function Groups() {
                                 <p className="text-[13px] text-red-500 font-[500] text-center">{groupError}</p>
                             )}
                             <div className="flex gap-[12px]">
-                                <button className="flex-1 py-[12px] text-gray-700 font-[600] border border-gray-200 rounded-[12px] hover:bg-gray-50" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
+                                <button className="flex-1 py-[12px] text-gray-700 font-[600] border border-gray-200 rounded-[12px] hover:bg-gray-50" onClick={() => { setIsDrawerOpen(false); resetGroupForm(); }}>Bekor qilish</button>
                                 <button 
                                     className={`flex-1 py-[12px] font-[600] rounded-[12px] transition-colors ${groupSaving ? 'bg-purple-400 text-white cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`} 
                                     onClick={handleSaveGroup}
                                     disabled={groupSaving}
                                 >
-                                    {groupSaving ? 'Saqlanmoqda...' : 'Saqlash'}
+                                    {groupSaving ? 'Saqlanmoqda...' : (editingGroup ? 'Yangilash' : 'Saqlash')}
                                 </button>
                             </div>
                         </div>

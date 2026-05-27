@@ -337,7 +337,6 @@ export default function GroupDetail() {
     const [date, setDate] = useState("2026-05-12")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
-    const [isMentorsOpen, setIsMentorsOpen] = useState(true)
     const [isParamsOpen, setIsParamsOpen] = useState(true)
     const [showAllDates, setShowAllDates] = useState(false)
     const [activeTab, setActiveTab] = useState("info")
@@ -351,7 +350,10 @@ export default function GroupDetail() {
     const [taughtDates, setTaughtDates] = useState(() => JSON.parse(localStorage.getItem(`taughtDates_${groupId}`) || '{}'))
     const [studentsLoading, setStudentsLoading] = useState(false)
     const [attendance, setAttendance] = useState({})
-    const [videos, setVideos] = useState([])
+    const [attendanceSaving, setAttendanceSaving] = useState(false)
+    const [attendanceMessage, setAttendanceMessage] = useState("")
+    const [attendanceError, setAttendanceError] = useState(false)
+    const [videos, setVideos] = useState(() => JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]'))
     const [videosLoading, setVideosLoading] = useState(false)
     const [videosError, setVideosError] = useState("")
     const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
@@ -363,6 +365,19 @@ export default function GroupDetail() {
     const [openVideoMenuId, setOpenVideoMenuId] = useState(null)
     const [deleteConfirmId, setDeleteConfirmId] = useState(null)
     const [mockVideos, setMockVideos] = useState(() => JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]'))
+
+    const getSavedAttendance = (date) => {
+        if (!date) return {}
+        const saved = JSON.parse(localStorage.getItem(`attendance_${groupId}`) || '{}')
+        return saved[date] || {}
+    }
+
+    const saveAttendanceForDate = (date, attendanceData) => {
+        if (!date) return
+        const saved = JSON.parse(localStorage.getItem(`attendance_${groupId}`) || '{}')
+        saved[date] = attendanceData
+        localStorage.setItem(`attendance_${groupId}`, JSON.stringify(saved))
+    }
 
     const handleVideoUpload = () => {
         if (!videoFile) return;
@@ -407,15 +422,32 @@ export default function GroupDetail() {
         setDeleteConfirmId(null);
     }
 
-    const handleSaveAttendance = () => {
+    const handleSaveAttendance = async () => {
         if (!selectedDate) return;
+        setAttendanceMessage("")
+        setAttendanceError(false)
+
         if (!mavzu.trim()) {
-            alert("Iltimos, dars mavzusini kiriting!");
+            setAttendanceMessage("Iltimos, dars mavzusini kiriting!")
+            setAttendanceError(true)
             return;
         }
-        const newTaughtDates = { ...taughtDates, [selectedDate]: true };
-        setTaughtDates(newTaughtDates);
-        localStorage.setItem(`taughtDates_${groupId}`, JSON.stringify(newTaughtDates));
+
+        setAttendanceSaving(true)
+        try {
+            const newTaughtDates = { ...taughtDates, [selectedDate]: true };
+            setTaughtDates(newTaughtDates);
+            localStorage.setItem(`taughtDates_${groupId}`, JSON.stringify(newTaughtDates));
+            saveAttendanceForDate(selectedDate, attendance)
+            setAttendanceMessage('Yo\'qlama saqlandi')
+            setAttendanceError(false)
+        } catch (err) {
+            console.error('Attendance save error:', err)
+            setAttendanceMessage('Yo\'qlama saqlanmadi')
+            setAttendanceError(true)
+        } finally {
+            setAttendanceSaving(false)
+        }
     }
 
     const token = localStorage.getItem("token")
@@ -494,7 +526,8 @@ export default function GroupDetail() {
                 // Barcha talabalar uchun attendance false bilan initsializatsiya
                 const init = {}
                 normalized.forEach(s => { init[s.id] = false })
-                setAttendance(init)
+                const saved = getSavedAttendance(selectedDate)
+                setAttendance(Object.keys(saved).length ? { ...init, ...saved } : init)
             }
         } catch (err) {
             console.error('Students fetch error:', err)
@@ -635,7 +668,14 @@ export default function GroupDetail() {
             }
         } catch (err) {
             console.error("Videos fetch error:", err)
-            setVideosError("Server bilan bog'lanishda xatolik!")
+            // On network error, still show locally saved videos
+            const savedMocks = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]');
+            if (savedMocks.length > 0) {
+                setVideos(savedMocks);
+                setVideosError("");
+            } else {
+                setVideosError("Server bilan bog'lanishda xatolik!")
+            }
         } finally {
             setVideosLoading(false)
         }
@@ -666,6 +706,13 @@ export default function GroupDetail() {
         }
 
         fetchGroupInfo()
+        // Reset videos to localStorage data for this specific group when switching groups
+        const saved = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]')
+        setVideos(saved)
+        setVideosError("")
+        setMockVideos(saved)
+        // ensure any previously opened video modal is closed when switching groups
+        setSelectedVideoPlayer(null)
     }, [groupId, location.pathname])
 
     const stats = useMemo(() => {
@@ -768,31 +815,27 @@ export default function GroupDetail() {
                     {!loading && !error && activeTab === "info" && (
                         <>
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-[0px] items-start mb-[32px]">
-                                <div className={`${isMentorsOpen ? 'bg-white' : 'bg-gray-100'} border border-gray-200 xl:rounded-l-[10px] overflow-hidden transition-colors`}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsMentorsOpen(!isMentorsOpen)}
-                                        className="w-full bg-blue-500 text-white px-[22px] py-[16px] flex items-center justify-between text-left"
-                                    >
+                                <div className="bg-white border border-gray-200 xl:rounded-l-[10px] overflow-hidden transition-colors">
+                                    <div className="w-full bg-blue-500 text-white px-[22px] py-[16px] flex items-center text-left">
                                         <h3 className="text-[18px] font-[800]">Guruh mentorlari</h3>
-                                        <i className={`fa-solid fa-chevron-${isMentorsOpen ? 'up' : 'down'}`}></i>
-                                    </button>
-                                    {isMentorsOpen && (
-                                        <div className="p-[28px] space-y-[20px]">
+                                    </div>
+                                    <div className="p-[28px]">
+                                        <div className="grid gap-[18px] md:grid-cols-2">
                                             {mentors.map((teacher, index) => (
-                                                <div key={index} className="flex items-center gap-[16px] cursor-pointer hover:bg-gray-50 p-[8px] rounded-[8px] transition-colors" onClick={() => setIsMentorsModalOpen(true)}>
-                                                    <div className="w-[48px] h-[48px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-[600] text-[18px] flex-shrink-0 overflow-hidden">
+                                                <div key={index} className="flex flex-col items-center gap-[6px] p-[14px] rounded-[18px] border border-gray-100 shadow-sm bg-white text-center">
+                                                    <div className="w-[64px] h-[64px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-[700] text-[24px] overflow-hidden">
                                                         {teacher?.avatar ? (
                                                             <img src={teacher.avatar} alt={teacher.name} className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <span>{teacher.name.charAt(0)}</span>
+                                                            <span>{(teacher.name || teacher.full_name || 'T')[0]}</span>
                                                         )}
                                                     </div>
-                                                    <span className="text-gray-900 font-[700] text-[16px]">{teacher.name}</span>
+                                                    <p className="text-[10px] font-[700] text-[#00b87c] uppercase tracking-[0.08em]">Teacher</p>
+                                                    <p className="text-[14px] font-[800] text-gray-900 truncate">{teacher.name || teacher.full_name}</p>
                                                 </div>
                                             ))}
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
 
                                 <div className={`${isParamsOpen ? 'bg-white' : 'bg-gray-100'} border border-gray-200 xl:rounded-r-[10px] overflow-hidden transition-colors`}>
@@ -1037,20 +1080,32 @@ export default function GroupDetail() {
 
                                                                 {/* Saqlash tugmasi */}
                                                                 {!isTaught && (
-                                                                    <div className="flex justify-end gap-[12px] pt-[4px]">
-                                                                        <button
-                                                                            onClick={() => setSelectedDate(null)}
-                                                                            className="px-[20px] py-[10px] border border-gray-200 rounded-[10px] text-gray-600 font-[700] hover:bg-gray-50 transition-colors"
-                                                                        >
-                                                                            Bekor qilish
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleSaveAttendance}
-                                                                            className="px-[24px] py-[10px] bg-[#00b87c] hover:bg-[#009e6a] text-white font-[700] rounded-[10px] transition-colors"
-                                                                        >
-                                                                            Saqlash
-                                                                        </button>
-                                                                    </div>
+                                                                    <>
+                                                                        <div className="flex justify-end gap-[12px] pt-[4px]">
+                                                                            <button
+                                                                                onClick={() => setSelectedDate(null)}
+                                                                                className="px-[20px] py-[10px] border border-gray-200 rounded-[10px] text-gray-600 font-[700] hover:bg-gray-50 transition-colors"
+                                                                            >
+                                                                                Bekor qilish
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={handleSaveAttendance}
+                                                                                disabled={attendanceSaving}
+                                                                                className="px-[24px] py-[10px] bg-[#00b87c] hover:bg-[#009e6a] text-white font-[700] rounded-[10px] transition-colors disabled:opacity-60"
+                                                                            >
+                                                                                {attendanceSaving ? (
+                                                                                    <><i className="fa-solid fa-spinner fa-spin mr-[8px]"></i> Saqlanmoqda...</>
+                                                                                ) : (
+                                                                                    'Saqlash'
+                                                                                )}
+                                                                            </button>
+                                                                        </div>
+                                                                        {attendanceMessage && (
+                                                                            <p className={`mt-[12px] text-[14px] font-[600] ${attendanceError ? 'text-red-500' : 'text-green-500'}`}>
+                                                                                {attendanceMessage}
+                                                                            </p>
+                                                                        )}
+                                                                    </>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -1215,7 +1270,7 @@ export default function GroupDetail() {
                                                                     {index + 1}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.title || lesson.name || lesson.subject || lesson.lesson_name || lesson.lessonName || "вЂ”"}
+                                                                    {lesson.title || lesson.name || lesson.subject || lesson.lesson_name || lesson.lessonName || "—"}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
                                                                     {lesson.submitted ?? lesson.students_count ?? 5}
@@ -1654,7 +1709,6 @@ export default function GroupDetail() {
                                 <video 
                                     src={selectedVideoPlayer.url} 
                                     controls 
-                                    autoPlay 
                                     className="w-full h-full object-contain"
                                 >
                                     Your browser does not support the video tag.
@@ -1716,3 +1770,4 @@ export default function GroupDetail() {
         </div>
     )
 }
+

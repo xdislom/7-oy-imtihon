@@ -22,6 +22,7 @@ export default function Login() {
     const navigate = useNavigate()
     const [phone, setPhone] = useState("")
     const [password, setPassword] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
 
@@ -94,15 +95,23 @@ export default function Login() {
                         />
                     </div>
 
-                    <div className="flex flex-col gap-[5px]">
+                    <div className="flex flex-col gap-[5px] relative">
                         <label className="font-[500] text-gray-700">Parol</label>
                         <input
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             placeholder="Parolni kiriting"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full h-[50px] px-[15px] border border-gray-300 rounded-[10px] outline-none"
+                            className="w-full h-[50px] px-[15px] pr-[45px] border border-gray-300 rounded-[10px] outline-none"
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(prev => !prev)}
+                            className="absolute right-[15px] top-[50%] -translate-y-[50%] text-gray-500 hover:text-gray-700"
+                            aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rish"}
+                        >
+                            <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />
+                        </button>
                     </div>
 
                     {error && (

@@ -30,6 +30,10 @@ function XonalarTab() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [roomToDelete, setRoomToDelete] = useState(null)
     const [toast, setToast] = useState(null)
+    const [roomForm, setRoomForm] = useState({ name: "", capacity: "" })
+    const [roomSaving, setRoomSaving] = useState(false)
+    const [roomFormError, setRoomFormError] = useState("")
+    const [editingRoom, setEditingRoom] = useState(null)
 
     const showToast = (type, message) => {
         setToast({ type, message })
@@ -81,6 +85,104 @@ function XonalarTab() {
     const confirmDelete = (id) => {
         setRoomToDelete(id)
         setIsDeleteModalOpen(true)
+    }
+
+    const resetRoomForm = () => {
+        setRoomForm({ name: "", capacity: "" })
+        setEditingRoom(null)
+        setRoomFormError("")
+    }
+
+    const openEditRoom = (room) => {
+        setEditingRoom(room)
+        setRoomForm({
+            name: room.name || "",
+            capacity: String(room.capacity || "")
+        })
+        setIsDrawerOpen(true)
+    }
+
+    const handleSaveRoom = async () => {
+        const token = localStorage.getItem("token")
+        if (!token) {
+            setRoomFormError("Avval tizimga kiring")
+            return
+        }
+
+        const isUpdate = !!editingRoom
+
+        if (!isUpdate && (!roomForm.name.trim() || !roomForm.capacity)) {
+            setRoomFormError("Xona nomi va sig'imini kiriting")
+            return
+        }
+
+        if (isUpdate && !roomForm.name.trim() && !roomForm.capacity) {
+            setRoomFormError("Kamida bitta maydonni o'zgartiring")
+            return
+        }
+
+        setRoomSaving(true)
+        setRoomFormError("")
+
+        try {
+            const payload = isUpdate
+                ? {
+                    ...(roomForm.name.trim() ? { name: roomForm.name.trim() } : {}),
+                    ...(roomForm.capacity ? { capacity: Number(roomForm.capacity) } : {})
+                }
+                : {
+                    name: roomForm.name.trim(),
+                    capacity: Number(roomForm.capacity)
+                }
+
+            const response = await fetch(
+                isUpdate
+                    ? `https://najot-edu.softwareengineer.uz/api/v1/rooms/${editingRoom.id}`
+                    : "https://najot-edu.softwareengineer.uz/api/v1/rooms",
+                {
+                    method: isUpdate ? "PATCH" : "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                    },
+                    body: JSON.stringify(payload)
+                }
+            )
+
+            const data = await response.json().catch(() => ({}))
+
+            if (!response.ok) {
+                throw new Error(data.message || (isUpdate ? "Xonani yangilashda xatolik yuz berdi" : "Xona qo'shishda xatolik yuz berdi"))
+            }
+
+            if (isUpdate) {
+                setRoomsList(prev => prev.map(item =>
+                    item.id === editingRoom.id
+                        ? { ...item, ...payload }
+                        : item
+                ))
+                showToast("success", "Xona muvaffaqiyatli yangilandi")
+            } else {
+                const createdRoom = data.data || data
+                setRoomsList(prev => [
+                    {
+                        id: createdRoom.id || createdRoom._id || Date.now(),
+                        name: createdRoom.name || roomForm.name.trim(),
+                        capacity: createdRoom.capacity || Number(roomForm.capacity)
+                    },
+                    ...prev
+                ])
+                showToast("success", "Xona muvaffaqiyatli qo'shildi")
+            }
+
+            resetRoomForm()
+            setIsDrawerOpen(false)
+            await fetchRooms()
+        } catch (err) {
+            setRoomFormError(err.message || (isUpdate ? "Xonani yangilashda xatolik yuz berdi" : "Xona qo'shishda xatolik yuz berdi"))
+        } finally {
+            setRoomSaving(false)
+        }
     }
 
     const handleDelete = async () => {
@@ -146,7 +248,10 @@ function XonalarTab() {
                                     className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"
                                     onClick={() => confirmDelete(room.id)}
                                 ></i>
-                                <i className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"></i>
+                                <i
+                                    className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"
+                                    onClick={() => openEditRoom(room)}
+                                ></i>
                             </div>
                         </div>
                     ))}
@@ -194,25 +299,45 @@ function XonalarTab() {
             )}
 
             {isDrawerOpen && (
-                <div className="fixed inset-0 bg-black/20 z-[200] flex justify-end" onClick={() => setIsDrawerOpen(false)}>
+                <div className="fixed inset-0 bg-black/20 z-[200] flex justify-end" onClick={() => { setIsDrawerOpen(false); resetRoomForm(); }}>
                     <div className="w-[450px] h-full bg-white shadow-2xl flex flex-col animate-slide-in" onClick={(e) => e.stopPropagation()}>
                         <div className="p-[24px] border-b relative">
-                            <h3 className="text-[20px] font-[600] mb-1">Xona qo'shish</h3>
-                            <i className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[20px] hover:text-red-500" onClick={() => setIsDrawerOpen(false)}></i>
+                            <h3 className="text-[20px] font-[600] mb-1">{editingRoom ? "Xona yangilash" : "Xona qo'shish"}</h3>
+                            <i className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[20px] hover:text-red-500" onClick={() => { setIsDrawerOpen(false); resetRoomForm(); }}></i>
                         </div>
                         <div className="flex-1 overflow-y-auto p-[24px] space-y-[24px]">
                             <div>
                                 <label className="block text-[14px] font-[500] text-gray-700 mb-[8px]">Xona nomi</label>
-                                <input type="text" placeholder="Xona nomini kiriting" className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500" />
+                                <input
+                                    type="text"
+                                    value={roomForm.name}
+                                    onChange={(e) => setRoomForm(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Xona nomini kiriting"
+                                    className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500"
+                                />
                             </div>
                             <div>
                                 <label className="block text-[14px] font-[500] text-gray-700 mb-[8px]">Sig'imi (kishi)</label>
-                                <input type="number" placeholder="Masalan: 15" className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500" />
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={roomForm.capacity}
+                                    onChange={(e) => setRoomForm(prev => ({ ...prev, capacity: e.target.value }))}
+                                    placeholder="Masalan: 15"
+                                    className="w-full px-[12px] py-[10px] border border-gray-200 rounded-[10px] outline-none focus:border-purple-500"
+                                />
                             </div>
+                            {roomFormError && <p className="text-[13px] text-red-500">{roomFormError}</p>}
                         </div>
                         <div className="p-[24px] border-t bg-gray-50 flex gap-[12px]">
-                            <button className="flex-1 py-[10px] text-gray-600 font-[600] border border-gray-200 rounded-[10px] bg-white hover:bg-gray-100" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
-                            <button className="flex-1 py-[10px] bg-purple-600 text-white font-[600] rounded-[10px] hover:bg-purple-700" onClick={() => setIsDrawerOpen(false)}>Saqlash</button>
+                            <button className="flex-1 py-[10px] text-gray-600 font-[600] border border-gray-200 rounded-[10px] bg-white hover:bg-gray-100" onClick={() => { setIsDrawerOpen(false); resetRoomForm(); }}>Bekor qilish</button>
+                            <button
+                                className="flex-1 py-[10px] bg-purple-600 text-white font-[600] rounded-[10px] hover:bg-purple-700 disabled:bg-purple-300"
+                                onClick={handleSaveRoom}
+                                disabled={roomSaving}
+                            >
+                                {roomSaving ? "Saqlanmoqda..." : (editingRoom ? "Yangilash" : "Saqlash")}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -229,6 +354,16 @@ function KurslarTab() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [courseToDelete, setCourseToDelete] = useState(null)
     const [toast, setToast] = useState(null)
+    const [courseForm, setCourseForm] = useState({
+        name: "",
+        duration_hours: "",
+        duration_month: "",
+        price: "",
+        description: "",
+    })
+    const [courseSaving, setCourseSaving] = useState(false)
+    const [courseFormError, setCourseFormError] = useState("")
+    const [editingCourse, setEditingCourse] = useState(null)
 
     const showToast = (type, message) => {
         setToast({ type, message })
@@ -265,15 +400,147 @@ function KurslarTab() {
                 id: course.id || course._id || index + 1,
                 title: course.name || course.title || `Kurs ${index + 1}`,
                 desc: course.description || course.desc || "Ma'lumot mavjud emas",
-                duration: course.duration || "Noma'lum",
+                duration: course.duration_hours || course.durationHours || course.duration || "Noma'lum",
                 period: course.duration_month || course.durationMonth || course.month ? `${course.duration_month || course.durationMonth || course.month} oy` : "Noma'lum",
-                price: course.price ? `${course.price.toLocaleString()} so'm` : "Noma'lum",
+                price: course.price ? `${Number(course.price).toLocaleString()} so'm` : "Noma'lum",
+                priceValue: course.price || 0,
+                durationHours: course.duration_hours || course.durationHours || "",
+                durationMonth: course.duration_month || course.durationMonth || "",
+                description: course.description || course.desc || "",
                 color: cardColors[index % cardColors.length]
             })))
         } catch (err) {
             setError(err.message)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const resetCourseForm = () => {
+        setCourseForm({ name: "", duration_hours: "", duration_month: "", price: "", description: "" })
+        setEditingCourse(null)
+        setCourseFormError("")
+    }
+
+    const openEditCourse = (course) => {
+        setEditingCourse(course)
+        setCourseForm({
+            name: course.title || "",
+            duration_hours: String(course.durationHours || course.duration || ""),
+            duration_month: String(course.durationMonth || ""),
+            price: String(course.priceValue || ""),
+            description: course.description || "",
+        })
+        setIsDrawerOpen(true)
+    }
+
+    const handleSaveCourse = async () => {
+        const token = localStorage.getItem("token")
+        if (!token) {
+            setCourseFormError("Avval tizimga kiring")
+            return
+        }
+
+        const isUpdate = !!editingCourse
+
+        if (!isUpdate) {
+            if (!courseForm.name.trim() || !courseForm.duration_hours || !courseForm.duration_month || !courseForm.price || !courseForm.description.trim()) {
+                setCourseFormError("Barcha maydonlarni to'ldiring")
+                return
+            }
+        } else {
+            const hasAnyValue = [courseForm.name, courseForm.duration_hours, courseForm.duration_month, courseForm.price, courseForm.description].some(value => String(value).trim() !== "")
+            if (!hasAnyValue) {
+                setCourseFormError("Kamida bitta maydonni o'zgartiring")
+                return
+            }
+        }
+
+        setCourseSaving(true)
+        setCourseFormError("")
+
+        try {
+            const payload = isUpdate
+                ? {
+                    ...(courseForm.name.trim() ? { name: courseForm.name.trim() } : {}),
+                    ...(courseForm.duration_hours ? { duration_hours: Number(courseForm.duration_hours) } : {}),
+                    ...(courseForm.duration_month ? { duration_month: Number(courseForm.duration_month) } : {}),
+                    ...(courseForm.price ? { price: Number(courseForm.price) } : {}),
+                    ...(courseForm.description.trim() ? { description: courseForm.description.trim() } : {}),
+                }
+                : {
+                    name: courseForm.name.trim(),
+                    duration_hours: Number(courseForm.duration_hours),
+                    duration_month: Number(courseForm.duration_month),
+                    price: Number(courseForm.price),
+                    description: courseForm.description.trim(),
+                }
+
+            const response = await fetch(
+                isUpdate
+                    ? `https://najot-edu.softwareengineer.uz/api/v1/courses/${editingCourse.id}`
+                    : "https://najot-edu.softwareengineer.uz/api/v1/courses",
+                {
+                    method: isUpdate ? "PATCH" : "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                    },
+                    body: JSON.stringify(payload)
+                }
+            )
+
+            const data = await response.json().catch(() => ({}))
+
+            if (!response.ok) {
+                throw new Error(data.message || (isUpdate ? "Kursni yangilashda xatolik yuz berdi" : "Kurs qo'shishda xatolik yuz berdi"))
+            }
+
+            if (isUpdate) {
+                setCoursesList(prev => prev.map(item => item.id === editingCourse.id
+                    ? {
+                        ...item,
+                        title: payload.name || item.title,
+                        desc: payload.description || item.desc,
+                        duration: payload.duration_hours || item.durationHours || item.duration,
+                        period: payload.duration_month ? `${payload.duration_month} oy` : item.period,
+                        price: payload.price ? `${Number(payload.price).toLocaleString()} so'm` : item.price,
+                        priceValue: payload.price || item.priceValue,
+                        durationHours: payload.duration_hours || item.durationHours,
+                        durationMonth: payload.duration_month || item.durationMonth,
+                        description: payload.description || item.description,
+                    }
+                    : item
+                ))
+                showToast("success", "Kurs muvaffaqiyatli yangilandi")
+            } else {
+                const createdCourse = data.data || data
+                setCoursesList(prev => [
+                    {
+                        id: createdCourse.id || createdCourse._id || Date.now(),
+                        title: createdCourse.name || courseForm.name.trim(),
+                        desc: createdCourse.description || courseForm.description.trim(),
+                        duration: createdCourse.duration_hours || createdCourse.durationHours || courseForm.duration_hours,
+                        period: createdCourse.duration_month || createdCourse.durationMonth || courseForm.duration_month ? `${createdCourse.duration_month || createdCourse.durationMonth || courseForm.duration_month} oy` : "Noma'lum",
+                        price: createdCourse.price ? `${Number(createdCourse.price).toLocaleString()} so'm` : `${Number(courseForm.price).toLocaleString()} so'm`,
+                        priceValue: createdCourse.price || Number(courseForm.price),
+                        durationHours: createdCourse.duration_hours || createdCourse.durationHours || courseForm.duration_hours,
+                        durationMonth: createdCourse.duration_month || createdCourse.durationMonth || courseForm.duration_month,
+                        description: createdCourse.description || courseForm.description.trim(),
+                        color: cardColors[(prev.length + 1) % cardColors.length],
+                    },
+                    ...prev,
+                ])
+                showToast("success", "Kurs muvaffaqiyatli qo'shildi")
+            }
+
+            resetCourseForm()
+            setIsDrawerOpen(false)
+            await fetchCourses()
+        } catch (err) {
+            setCourseFormError(err.message || (isUpdate ? "Kursni yangilashda xatolik yuz berdi" : "Kurs qo'shishda xatolik yuz berdi"))
+        } finally {
+            setCourseSaving(false)
         }
     }
 
@@ -351,7 +618,10 @@ function KurslarTab() {
                                         className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"
                                         onClick={() => confirmDelete(course.id)}
                                     ></i>
-                                    <i className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"></i>
+                                    <i
+                                        className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"
+                                        onClick={() => openEditCourse(course)}
+                                    ></i>
                                 </div>
                             </div>
                         </div>
@@ -403,7 +673,7 @@ function KurslarTab() {
             {isDrawerOpen && (
                 <div 
                     className="fixed inset-0 bg-black/20 z-[200] flex justify-end"
-                    onClick={() => setIsDrawerOpen(false)}
+                    onClick={() => { setIsDrawerOpen(false); resetCourseForm(); }}
                 >
                     <div 
                         className="w-[450px] h-full bg-white shadow-2xl flex flex-col animate-slide-in"
@@ -411,11 +681,11 @@ function KurslarTab() {
                     >
                         {/* Drawer Header */}
                         <div className="p-[24px] border-b relative">
-                            <h3 className="text-[20px] font-[700] mb-1">Kurs qo'shish</h3>
-                            <p className="text-[13px] text-gray-500">Bu yerda siz yangi kurs qo'shishingiz mumkin.</p>
+                            <h3 className="text-[20px] font-[700] mb-1">{editingCourse ? "Kursni yangilash" : "Kurs qo'shish"}</h3>
+                            <p className="text-[13px] text-gray-500">{editingCourse ? "Faqat o'zgartirmoqchi bo'lgan maydonlarni kiriting." : "Bu yerda siz yangi kurs qo'shishingiz mumkin."}</p>
                             <i 
                                 className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[20px] hover:text-red-500"
-                                onClick={() => setIsDrawerOpen(false)}
+                                onClick={() => { setIsDrawerOpen(false); resetCourseForm(); }}
                             ></i>
                         </div>
 
@@ -425,21 +695,28 @@ function KurslarTab() {
                             <div>
                                 <label className="block text-[15px] font-[700] text-[#2d3748] mb-[8px]">Nomi</label>
                                 <input 
-                                    type="text" 
-                                    placeholder="HR Manager..."
+                                    type="text"
+                                    value={courseForm.name}
+                                    onChange={(e) => setCourseForm(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Masalan: Frontend Foundation"
                                     className="w-full px-[14px] py-[12px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 font-[500]"
                                 />
                             </div>
 
                             {/* Dars davomiyligi */}
                             <div>
-                                <label className="block text-[15px] font-[700] text-[#2d3748] mb-[8px]">Dars davomiyligi</label>
+                                <label className="block text-[15px] font-[700] text-[#2d3748] mb-[8px]">Dars davomiyligi (soat)</label>
                                 <div className="relative">
-                                    <select className="w-full px-[14px] py-[12px] border border-gray-200 rounded-[12px] outline-none focus:border-blue-500 appearance-none bg-white font-[500]">
+                                    <select
+                                        value={courseForm.duration_hours}
+                                        onChange={(e) => setCourseForm(prev => ({ ...prev, duration_hours: e.target.value }))}
+                                        className="w-full px-[14px] py-[12px] border border-gray-200 rounded-[12px] outline-none focus:border-blue-500 appearance-none bg-white font-[500]"
+                                    >
                                         <option value="">Tanlang</option>
-                                        <option value="60 min">60 min</option>
-                                        <option value="90 min">90 min</option>
-                                        <option value="120 min">120 min</option>
+                                        <option value="1">1 soat</option>
+                                        <option value="2">2 soat</option>
+                                        <option value="3">3 soat</option>
+                                        <option value="4">4 soat</option>
                                     </select>
                                     <i className="fa-solid fa-chevron-down absolute right-[14px] top-[16px] text-gray-400 text-[12px]"></i>
                                 </div>
@@ -449,7 +726,11 @@ function KurslarTab() {
                             <div>
                                 <label className="block text-[15px] font-[700] text-[#2d3748] mb-[8px]">Kurs davomiyligi (oylarda)</label>
                                 <div className="relative">
-                                    <select className="w-full px-[14px] py-[12px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 appearance-none bg-white font-[500]">
+                                    <select
+                                        value={courseForm.duration_month}
+                                        onChange={(e) => setCourseForm(prev => ({ ...prev, duration_month: e.target.value }))}
+                                        className="w-full px-[14px] py-[12px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 appearance-none bg-white font-[500]"
+                                    >
                                         <option value="">Tanlang</option>
                                         <option value="1">1 oy</option>
                                         <option value="2">2 oy</option>
@@ -464,7 +745,10 @@ function KurslarTab() {
                             <div>
                                 <label className="block text-[15px] font-[700] text-[#2d3748] mb-[8px]">Narx</label>
                                 <input 
-                                    type="text" 
+                                    type="number"
+                                    min="0"
+                                    value={courseForm.price}
+                                    onChange={(e) => setCourseForm(prev => ({ ...prev, price: e.target.value }))}
                                     placeholder="Narxini kiriting"
                                     className="w-full px-[14px] py-[12px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500"
                                 />
@@ -473,18 +757,27 @@ function KurslarTab() {
                             {/* Description */}
                             <div>
                                 <label className="block text-[15px] font-[700] text-[#2d3748] mb-[8px]">Description</label>
-                                <textarea 
-                                    placeholder="A little about the company and the team that you'll be working with."
+                                <textarea
+                                    value={courseForm.description}
+                                    onChange={(e) => setCourseForm(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Kurs haqida qisqacha ma'lumot..."
                                     className="w-full px-[14px] py-[12px] border border-gray-200 rounded-[12px] outline-none focus:border-purple-500 min-h-[120px] resize-none text-gray-500"
                                 ></textarea>
-                                <p className="text-[12px] text-gray-400 mt-2">This is a hint text to help user.</p>
+                                <p className="text-[12px] text-gray-400 mt-2">Kurs tavsifi ko'rsatiladi.</p>
                             </div>
+                            {courseFormError && <p className="text-[13px] text-red-500">{courseFormError}</p>}
                         </div>
 
                         {/* Drawer Footer */}
                         <div className="p-[24px] border-t bg-white flex gap-[12px]">
-                            <button className="flex-1 py-[12px] text-[#2d3748] font-[700] border border-gray-200 rounded-[12px] bg-[#edf2f7] hover:bg-gray-200 transition-colors" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
-                            <button className="flex-1 py-[12px] bg-[#6366f1] text-white font-[700] rounded-[12px] hover:bg-indigo-700 transition-colors shadow-sm" onClick={() => setIsDrawerOpen(false)}>Saqlash</button>
+                            <button className="flex-1 py-[12px] text-[#2d3748] font-[700] border border-gray-200 rounded-[12px] bg-[#edf2f7] hover:bg-gray-200 transition-colors" onClick={() => { setIsDrawerOpen(false); resetCourseForm(); }}>Bekor qilish</button>
+                            <button
+                                className="flex-1 py-[12px] bg-[#6366f1] text-white font-[700] rounded-[12px] hover:bg-indigo-700 transition-colors shadow-sm disabled:bg-indigo-300"
+                                onClick={handleSaveCourse}
+                                disabled={courseSaving}
+                            >
+                                {courseSaving ? "Saqlanmoqda..." : (editingCourse ? "Yangilash" : "Saqlash")}
+                            </button>
                         </div>
                     </div>
                 </div>
