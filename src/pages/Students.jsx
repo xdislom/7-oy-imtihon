@@ -33,10 +33,35 @@ export default function Students() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [toast, setToast] = useState(null) // { type: 'success' | 'error', message: string }
+    const [editingStudent, setEditingStudent] = useState(null)
 
     const showToast = (type, message) => {
         setToast({ type, message })
         setTimeout(() => setToast(null), 3500)
+    }
+
+    const openEditDrawer = (student) => {
+        setEditingStudent(student)
+        setPhone(student.phone || "+998")
+        setEmail(student.email || "")
+        setName(student.name || "")
+        setBirthDate(student.birthDate || "")
+        setAddress(student.address || "")
+        setPassword("")
+        setSelectedGroups(student.groups || [])
+        setIsDrawerOpen(true)
+    }
+
+    const resetForm = () => {
+        setEditingStudent(null)
+        setPhone("+998")
+        setEmail("")
+        setName("")
+        setBirthDate("")
+        setAddress("")
+        setPassword("")
+        setSelectedGroups([])
+        setError("")
     }
 
     const fetchStudents = async () => {
@@ -131,13 +156,19 @@ export default function Students() {
             full_name: name,
             birth_date: birthDate || null,
             address,
-            password,
+            ...(password && { password }),
             groups: selectedGroups.map(g => typeof g === 'object' ? g.id : g)
         }
 
         try {
-            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/students", {
-                method: "POST",
+            const isUpdate = !!editingStudent
+            const method = isUpdate ? "PATCH" : "POST"
+            const url = isUpdate 
+                ? `https://najot-edu.softwareengineer.uz/api/v1/students/${editingStudent.id}`
+                : "https://najot-edu.softwareengineer.uz/api/v1/students"
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
@@ -149,38 +180,50 @@ export default function Students() {
             console.log("Save student response:", data)
 
             if (response.ok) {
-                // Yangi talabani darhol listga qo'shish
-                const newStudent = data.data || data
-                const idx = students.length
-                setStudents(prev => [
-                    ...prev,
-                    {
-                        id: newStudent.id || newStudent._id || Date.now(),
-                        name: newStudent.full_name || newStudent.name || name,
-                        groups: Array.isArray(newStudent.groups)
-                            ? newStudent.groups.map(g => typeof g === 'object' ? g.name : g)
-                            : selectedGroups.map(g => typeof g === 'object' ? g.name : g),
-                        phone: newStudent.phone || phone,
-                        email: newStudent.email || email,
-                        birthDate: birthDate
-                            ? new Date(birthDate).toLocaleDateString('ru-RU')
-                            : "Noma'lum",
-                        address: newStudent.address || address || "Noma'lum",
-                        createdDate: new Date().toLocaleDateString('ru-RU'),
-                        initial: (name || "S").charAt(0).toUpperCase(),
-                        color: colors[idx % colors.length]
-                    }
-                ])
-                // Formani tozalash
+                if (isUpdate) {
+                    // Update existing student in list
+                    setStudents(prev => prev.map(s => 
+                        s.id === editingStudent.id 
+                            ? {
+                                ...s,
+                                name: name,
+                                phone: phone,
+                                email: email,
+                                birthDate: birthDate ? new Date(birthDate).toLocaleDateString('ru-RU') : "Noma'lum",
+                                address: address || "Noma'lum",
+                                groups: selectedGroups.map(g => typeof g === 'object' ? g.name : g)
+                            }
+                            : s
+                    ))
+                    showToast("success", `"${name}" muvaffaqiyatli yangilandi! ✓`)
+                } else {
+                    // Add new student to list
+                    const newStudent = data.data || data
+                    const idx = students.length
+                    setStudents(prev => [
+                        ...prev,
+                        {
+                            id: newStudent.id || newStudent._id || Date.now(),
+                            name: newStudent.full_name || newStudent.name || name,
+                            groups: Array.isArray(newStudent.groups)
+                                ? newStudent.groups.map(g => typeof g === 'object' ? g.name : g)
+                                : selectedGroups.map(g => typeof g === 'object' ? g.name : g),
+                            phone: newStudent.phone || phone,
+                            email: newStudent.email || email,
+                            birthDate: birthDate
+                                ? new Date(birthDate).toLocaleDateString('ru-RU')
+                                : "Noma'lum",
+                            address: newStudent.address || address || "Noma'lum",
+                            createdDate: new Date().toLocaleDateString('ru-RU'),
+                            initial: (name || "S").charAt(0).toUpperCase(),
+                            color: colors[idx % colors.length]
+                        }
+                    ])
+                    showToast("success", `"${name}" muvaffaqiyatli qo'shildi! ✓`)
+                }
+                // Form tozalash
                 setIsDrawerOpen(false)
-                setPhone("+998")
-                setEmail("")
-                setName("")
-                setBirthDate("")
-                setAddress("")
-                setPassword("")
-                setSelectedGroups([])
-                showToast("success", `"${name}" muvaffaqiyatli qo'shildi! ✓`)
+                resetForm()
             } else {
                 const errMsg = data.message || "Xatolik yuz berdi!"
                 setError(errMsg)
@@ -278,7 +321,10 @@ export default function Students() {
                             </div>
                             <Button 
                                 variant="contained" 
-                                onClick={() => setIsDrawerOpen(true)}
+                                onClick={() => {
+                                    resetForm()
+                                    setIsDrawerOpen(true)
+                                }}
                                 sx={{ 
                                     bgcolor: '#7c3aed', 
                                     textTransform: 'none', 
@@ -368,7 +414,10 @@ export default function Students() {
                                                             className="fa-regular fa-trash-can cursor-pointer hover:text-red-500"
                                                             onClick={() => confirmDelete(student.id)}
                                                         ></i>
-                                                        <i className="fa-regular fa-pen-to-square cursor-pointer hover:text-purple-600"></i>
+                                                        <i 
+                                                            className="fa-regular fa-pen-to-square cursor-pointer hover:text-purple-600"
+                                                            onClick={() => openEditDrawer(student)}
+                                                        ></i>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -400,22 +449,34 @@ export default function Students() {
                 </div>
             </div>
 
-            {/* Talaba qo'shish Drawer */}
+            {/* Talaba qo'shish/Tahrir Drawer */}
             {isDrawerOpen && (
                 <div 
                     className="fixed inset-0 bg-black/20 z-[200] flex justify-end"
-                    onClick={() => setIsDrawerOpen(false)}
+                    onClick={() => {
+                        setIsDrawerOpen(false)
+                        resetForm()
+                    }}
                 >
                     <div 
                         className="w-[450px] h-full bg-white shadow-2xl flex flex-col animate-slide-in"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="p-[24px] border-b relative">
-                            <h3 className="text-[20px] font-[700] mb-1">Talaba qo'shish</h3>
-                            <p className="text-[13px] text-gray-500">Bu yerda siz yangi Talaba qo'shishingiz mumkin.</p>
+                            <h3 className="text-[20px] font-[700] mb-1">
+                                {editingStudent ? "Talabani tahrir qilish" : "Talaba qo'shish"}
+                            </h3>
+                            <p className="text-[13px] text-gray-500">
+                                {editingStudent 
+                                    ? "Talabaning ma'lumotlarini yangilang." 
+                                    : "Bu yerda siz yangi Talaba qo'shishingiz mumkin."}
+                            </p>
                             <i 
                                 className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[20px] hover:text-red-500"
-                                onClick={() => setIsDrawerOpen(false)}
+                                onClick={() => {
+                                    setIsDrawerOpen(false)
+                                    resetForm()
+                                }}
                             ></i>
                         </div>
                         <div className="flex-1 overflow-y-auto p-[24px] space-y-[20px]">
@@ -540,13 +601,23 @@ export default function Students() {
                             </div>
                         )}
                         <div className="p-[24px] border-t bg-white flex gap-[12px]">
-                            <button className="flex-1 py-[12px] text-gray-700 font-[600] border border-gray-200 rounded-[12px] hover:bg-gray-50" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
+                            <button 
+                                className="flex-1 py-[12px] text-gray-700 font-[600] border border-gray-200 rounded-[12px] hover:bg-gray-50" 
+                                onClick={() => {
+                                    setIsDrawerOpen(false)
+                                    resetForm()
+                                }}
+                            >
+                                Bekor qilish
+                            </button>
                             <button 
                                 className={`flex-1 py-[12px] font-[600] rounded-[12px] ${loading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`} 
                                 onClick={handleSave}
                                 disabled={loading}
                             >
-                                {loading ? 'Saqlanmoqda...' : 'Saqlash'}
+                                {loading 
+                                    ? 'Saqlanmoqda...' 
+                                    : (editingStudent ? 'Yangilash' : 'Saqlash')}
                             </button>
                         </div>
                     </div>

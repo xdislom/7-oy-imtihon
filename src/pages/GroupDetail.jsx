@@ -1,4 +1,4 @@
-
+﻿
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Sidebar from "../components/Sidebar"
@@ -348,8 +348,75 @@ export default function GroupDetail() {
     const [mavzu, setMavzu] = useState("")
     const [tavsif, setTavsif] = useState("")
     const [groupStudents, setGroupStudents] = useState([])
+    const [taughtDates, setTaughtDates] = useState(() => JSON.parse(localStorage.getItem(`taughtDates_${groupId}`) || '{}'))
     const [studentsLoading, setStudentsLoading] = useState(false)
     const [attendance, setAttendance] = useState({})
+    const [videos, setVideos] = useState([])
+    const [videosLoading, setVideosLoading] = useState(false)
+    const [videosError, setVideosError] = useState("")
+    const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
+    const [videoFile, setVideoFile] = useState(null)
+    const [videoDragOver, setVideoDragOver] = useState(false)
+    const [generalLessons, setGeneralLessons] = useState([])
+    const [isUploading, setIsUploading] = useState(false)
+    const [selectedVideoPlayer, setSelectedVideoPlayer] = useState(null)
+    const [openVideoMenuId, setOpenVideoMenuId] = useState(null)
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+    const [mockVideos, setMockVideos] = useState(() => JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]'))
+
+    const handleVideoUpload = () => {
+        if (!videoFile) return;
+        setIsUploading(true);
+        setTimeout(() => {
+            const newVideo = {
+                id: Date.now(),
+                name: videoFile.name,
+                file_size: videoFile.size,
+                created_at: new Date().toISOString(),
+                lesson_name: "Yangi yuklangan video",
+                url: URL.createObjectURL(videoFile),
+                isMock: true
+            };
+            
+            const updatedMockVideos = [newVideo, ...mockVideos];
+            setMockVideos(updatedMockVideos);
+            // Save without URL to localStorage because Object URLs don't persist
+            const videosToSave = updatedMockVideos.map(v => ({...v, url: null}));
+            localStorage.setItem(`mockVideos_${groupId}`, JSON.stringify(videosToSave));
+            
+            setVideos([newVideo, ...videos]);
+            setVideosError(""); // Clear any fetch errors to show the table
+            setIsVideoModalOpen(false);
+            setVideoFile(null);
+            setIsUploading(false);
+        }, 1000);
+    }
+
+    const handleDeleteVideo = (fileId) => {
+        setOpenVideoMenuId(null);
+        setDeleteConfirmId(fileId);
+    }
+
+    const confirmDeleteVideo = () => {
+        const fileId = deleteConfirmId;
+        const updatedVideos = videos.filter(v => (v.id || v._id) !== fileId);
+        setVideos(updatedVideos);
+        const updatedMockVideos = mockVideos.filter(v => v.id !== fileId);
+        setMockVideos(updatedMockVideos);
+        localStorage.setItem(`mockVideos_${groupId}`, JSON.stringify(updatedMockVideos));
+        setDeleteConfirmId(null);
+    }
+
+    const handleSaveAttendance = () => {
+        if (!selectedDate) return;
+        if (!mavzu.trim()) {
+            alert("Iltimos, dars mavzusini kiriting!");
+            return;
+        }
+        const newTaughtDates = { ...taughtDates, [selectedDate]: true };
+        setTaughtDates(newTaughtDates);
+        localStorage.setItem(`taughtDates_${groupId}`, JSON.stringify(newTaughtDates));
+    }
 
     const token = localStorage.getItem("token")
 
@@ -516,11 +583,81 @@ export default function GroupDetail() {
         }
     }
 
+    const fetchGeneralLessons = async () => {
+        const tok = (token || '').replace(/^Bearer\s+/i, '').trim()
+        if (!tok) return
+        try {
+            const headers = { "Authorization": `Bearer ${tok}` }
+            const res = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/lessons`, { headers })
+            if (res.ok) {
+                const data = await res.json()
+                const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : [])
+                setGeneralLessons(list)
+            }
+        } catch (err) {
+            console.error("General lessons fetch error:", err)
+        }
+    }
+
+    const fetchVideos = async () => {
+        const tok = (token || '').replace(/^Bearer\s+/i, '').trim()
+        if (!tok) return
+        setVideosLoading(true)
+        setVideosError("")
+        try {
+            const headers = { "Authorization": `Bearer ${tok}` }
+            // Try primary endpoint
+            let res = await fetch(`${API_URL}/files?group_id=${groupId}`, { headers })
+            if (!res.ok && res.status !== 401) {
+                // Fallback endpoint
+                res = await fetch(`${API_URL}/files/all?group_id=${groupId}`, { headers })
+            }
+            if (res.status === 401) {
+                localStorage.removeItem("token")
+                navigate("/")
+                return
+            }
+            if (res.ok) {
+                const data = await res.json()
+                const backendVideos = findArray(data) || [];
+                const savedMocks = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]');
+                setVideos([...savedMocks, ...backendVideos])
+                setVideosError("")
+            } else {
+                // Even on error, show saved local videos
+                const savedMocks = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]');
+                if (savedMocks.length > 0) {
+                    setVideos(savedMocks);
+                    setVideosError("");
+                } else {
+                    setVideosError("Videolar yuklanishda xatolik yuz berdi")
+                }
+            }
+        } catch (err) {
+            console.error("Videos fetch error:", err)
+            setVideosError("Server bilan bog'lanishda xatolik!")
+        } finally {
+            setVideosLoading(false)
+        }
+    }
+
     useEffect(() => {
         if (selectedDate) {
             fetchGroupStudents()
         }
     }, [selectedDate])
+
+    useEffect(() => {
+        if (isVideoModalOpen && generalLessons.length === 0) {
+            fetchGeneralLessons()
+        }
+    }, [isVideoModalOpen, generalLessons.length])
+
+    useEffect(() => {
+        if (activeLessonsTab === "videos" && activeTab === "lessons") {
+            fetchVideos()
+        }
+    }, [activeLessonsTab, activeTab])
 
     useEffect(() => {
         if (location.pathname.startsWith("/dashboard/groups/")) {
@@ -591,19 +728,19 @@ export default function GroupDetail() {
                         <div className="flex gap-[28px]">
                             <button
                                 onClick={() => setActiveTab("info")}
-                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "info" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
+                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "info" ? 'text-[#00b87c] border-[#00b87c]' : 'text-gray-500 border-transparent'}`}
                             >
                                 Ma'lumotlar
                             </button>
                             <button
                                 onClick={() => setActiveTab("lessons")}
-                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "lessons" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
+                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "lessons" ? 'text-[#00b87c] border-[#00b87c]' : 'text-gray-500 border-transparent'}`}
                             >
                                 Guruh darsliklari
                             </button>
                             <button
                                 onClick={() => setActiveTab("attendance")}
-                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "attendance" ? 'text-purple-600 border-purple-600' : 'text-gray-500 border-transparent'}`}
+                                className={`py-[12px] font-[800] border-b-[3px] transition-colors ${activeTab === "attendance" ? 'text-[#00b87c] border-[#00b87c]' : 'text-gray-500 border-transparent'}`}
                             >
                                 Akademik davomati
                             </button>
@@ -741,7 +878,14 @@ export default function GroupDetail() {
                                                 </div>
 
                                                 {/* Tanlangan sana uchun Ma'lumot paneli */}
-                                                {selectedDate && (
+                                                {selectedDate && (() => {
+                                                    const todayObj = new Date();
+                                                    todayObj.setHours(0, 0, 0, 0);
+                                                    const selectedDateObj = new Date(selectedDate);
+                                                    const isPastDate = selectedDateObj < todayObj;
+                                                    const isTaught = isPastDate || taughtDates[selectedDate];
+
+                                                    return (
                                                     <div className="mt-[28px] space-y-[16px] animate-fade-in">
                                                         {/* Ma'lumot kartasi */}
                                                         <div className="bg-white border border-gray-200 rounded-[14px] overflow-hidden">
@@ -766,7 +910,7 @@ export default function GroupDetail() {
                                                                     </div>
                                                                     <div>
                                                                         <p className="text-[12px] text-gray-400 font-[500] mb-[2px]">Holat</p>
-                                                                        <p className="text-[14px] font-[700] text-blue-500">Dars o'tilmagan</p>
+                                                                        <p className={`text-[14px] font-[700] ${isTaught ? 'text-[#00b87c]' : 'text-blue-500'}`}>{isTaught ? "Dars o'tilgan" : "Dars o'tilmagan"}</p>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -782,12 +926,12 @@ export default function GroupDetail() {
                                                                 <div className="flex items-center gap-[24px]">
                                                                     <label className="flex items-center gap-[8px] cursor-pointer">
                                                                         <div
-                                                                            onClick={() => setLessonType('reja')}
+                                                                            onClick={() => !isTaught && setLessonType('reja')}
                                                                             className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all ${
                                                                                 lessonType === 'reja'
                                                                                     ? 'border-[#00b87c]'
                                                                                     : 'border-gray-300'
-                                                                            }`}
+                                                                            } ${isTaught ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                         >
                                                                             {lessonType === 'reja' && <div className="w-[8px] h-[8px] rounded-full bg-[#00b87c]"></div>}
                                                                         </div>
@@ -795,12 +939,12 @@ export default function GroupDetail() {
                                                                     </label>
                                                                     <label className="flex items-center gap-[8px] cursor-pointer">
                                                                         <div
-                                                                            onClick={() => setLessonType('boshqa')}
+                                                                            onClick={() => !isTaught && setLessonType('boshqa')}
                                                                             className={`w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center transition-all ${
                                                                                 lessonType === 'boshqa'
                                                                                     ? 'border-[#00b87c]'
                                                                                     : 'border-gray-300'
-                                                                            }`}
+                                                                            } ${isTaught ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                         >
                                                                             {lessonType === 'boshqa' && <div className="w-[8px] h-[8px] rounded-full bg-[#00b87c]"></div>}
                                                                         </div>
@@ -816,7 +960,8 @@ export default function GroupDetail() {
                                                                         value={mavzu}
                                                                         onChange={e => setMavzu(e.target.value)}
                                                                         placeholder="Mavzuni kiriting..."
-                                                                        className="w-full px-[14px] py-[11px] border border-gray-200 rounded-[10px] outline-none focus:border-[#00b87c] text-[14px] font-[500] transition-colors"
+                                                                        disabled={isTaught}
+                                                                        className={`w-full px-[14px] py-[11px] border border-gray-200 rounded-[10px] outline-none focus:border-[#00b87c] text-[14px] font-[500] transition-colors ${isTaught ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                                                                     />
                                                                 </div>
 
@@ -828,7 +973,8 @@ export default function GroupDetail() {
                                                                         onChange={e => setTavsif(e.target.value)}
                                                                         placeholder="Tavsif kiriting..."
                                                                         rows={3}
-                                                                        className="w-full px-[14px] py-[11px] border border-gray-200 rounded-[10px] outline-none focus:border-[#00b87c] text-[14px] font-[500] resize-none transition-colors"
+                                                                        disabled={isTaught}
+                                                                        className={`w-full px-[14px] py-[11px] border border-gray-200 rounded-[10px] outline-none focus:border-[#00b87c] text-[14px] font-[500] resize-none transition-colors ${isTaught ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
                                                                     />
                                                                 </div>
 
@@ -865,12 +1011,13 @@ export default function GroupDetail() {
                                                                                         </td>
                                                                                         <td className="py-[12px] px-[12px] text-right">
                                                                                             <button
-                                                                                                onClick={() => setAttendance(prev => ({ ...prev, [student.id]: !prev[student.id] }))}
+                                                                                                onClick={() => !isTaught && setAttendance(prev => ({ ...prev, [student.id]: !prev[student.id] }))}
+                                                                                                disabled={isTaught}
                                                                                                 className={`relative inline-flex items-center w-[44px] h-[24px] rounded-full transition-all duration-300 focus:outline-none ${
                                                                                                     attendance[student.id]
                                                                                                         ? 'bg-[#7c3aed]'
                                                                                                         : 'bg-gray-200'
-                                                                                                }`}
+                                                                                                } ${isTaught ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                                             >
                                                                                                 <span className={`inline-block w-[18px] h-[18px] rounded-full bg-white shadow-sm transform transition-transform duration-300 ${
                                                                                                     attendance[student.id] ? 'translate-x-[22px]' : 'translate-x-[3px]'
@@ -889,24 +1036,27 @@ export default function GroupDetail() {
                                                                 </div>
 
                                                                 {/* Saqlash tugmasi */}
-                                                                <div className="flex justify-end gap-[12px] pt-[4px]">
-                                                                    <button
-                                                                        onClick={() => setSelectedDate(null)}
-                                                                        className="px-[20px] py-[10px] border border-gray-200 rounded-[10px] text-gray-600 font-[700] hover:bg-gray-50 transition-colors"
-                                                                    >
-                                                                        Bekor qilish
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => setSelectedDate(null)}
-                                                                        className="px-[24px] py-[10px] bg-[#00b87c] hover:bg-[#009e6a] text-white font-[700] rounded-[10px] transition-colors"
-                                                                    >
-                                                                        Saqlash
-                                                                    </button>
-                                                                </div>
+                                                                {!isTaught && (
+                                                                    <div className="flex justify-end gap-[12px] pt-[4px]">
+                                                                        <button
+                                                                            onClick={() => setSelectedDate(null)}
+                                                                            className="px-[20px] py-[10px] border border-gray-200 rounded-[10px] text-gray-600 font-[700] hover:bg-gray-50 transition-colors"
+                                                                        >
+                                                                            Bekor qilish
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={handleSaveAttendance}
+                                                                            className="px-[24px] py-[10px] bg-[#00b87c] hover:bg-[#009e6a] text-white font-[700] rounded-[10px] transition-colors"
+                                                                        >
+                                                                            Saqlash
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
-                                                )}
+                                                    );
+                                                })()}
 
                                                 <div className="flex justify-center mt-[42px]">
                                                     <button
@@ -970,51 +1120,61 @@ export default function GroupDetail() {
                             <div className="px-[32px] py-[28px]">
                                 <div className="flex items-center justify-between mb-[24px]">
                                     <h3 className="text-[20px] font-[800] text-gray-900">Guruh darsliklari</h3>
-                                    <button
-                                        onClick={() => navigate(`${location.pathname}/homework/create`)}
-                                        className="px-[20px] py-[10px] bg-teal-500 hover:bg-teal-600 text-white font-[700] rounded-[8px] transition-colors"
-                                    >
-                                        Qo'shish
-                                    </button>
+                                    {(activeLessonsTab === "homework" || activeLessonsTab === "videos") && (
+                                        <button
+                                            onClick={() => {
+                                                if (activeLessonsTab === 'homework') {
+                                                    navigate(`${location.pathname}/homework/create`)
+                                                } else {
+                                                    setIsVideoModalOpen(true)
+                                                }
+                                            }}
+                                            className="px-[20px] py-[10px] bg-[#00b87c] hover:bg-[#009e6a] text-white font-[700] rounded-[8px] transition-colors"
+                                        >
+                                            Qo'shish
+                                        </button>
+                                    )}
                                 </div>
 
-                                <div className="flex gap-[8px] mb-[28px] overflow-x-auto">
-                                    <button
-                                        onClick={() => setActiveLessonsTab("homework")}
-                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${activeLessonsTab === "homework"
-                                                ? 'bg-white border border-gray-200 text-gray-900'
-                                                : 'text-gray-500 hover:text-gray-700'
-                                            }`}
-                                    >
-                                        Uyga vazifa
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveLessonsTab("videos")}
-                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${activeLessonsTab === "videos"
-                                                ? 'bg-white border border-gray-200 text-gray-900'
-                                                : 'text-gray-500 hover:text-gray-700'
-                                            }`}
-                                    >
-                                        Videolar
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveLessonsTab("exams")}
-                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${activeLessonsTab === "exams"
-                                                ? 'bg-white border border-gray-200 text-gray-900'
-                                                : 'text-gray-500 hover:text-gray-700'
-                                            }`}
-                                    >
-                                        Imtihonlar
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveLessonsTab("journal")}
-                                        className={`px-[16px] py-[10px] font-[600] text-[14px] rounded-[8px] transition-colors whitespace-nowrap ${activeLessonsTab === "journal"
-                                                ? 'bg-white border border-gray-200 text-gray-900'
-                                                : 'text-gray-500 hover:text-gray-700'
-                                            }`}
-                                    >
-                                        Jurnal
-                                    </button>
+                                <div className="flex mb-[28px] overflow-x-auto">
+                                    <div className="flex gap-[4px] p-[6px] bg-[#f8fafc] rounded-[12px]">
+                                        <button
+                                            onClick={() => setActiveLessonsTab("homework")}
+                                            className={`px-[20px] py-[8px] font-[600] text-[14px] rounded-[8px] transition-all whitespace-nowrap ${activeLessonsTab === "homework"
+                                                    ? 'bg-white text-gray-900 shadow-sm'
+                                                    : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                        >
+                                            Uyga vazifa
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveLessonsTab("videos")}
+                                            className={`px-[20px] py-[8px] font-[600] text-[14px] rounded-[8px] transition-all whitespace-nowrap ${activeLessonsTab === "videos"
+                                                    ? 'bg-white text-gray-900 shadow-sm'
+                                                    : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                        >
+                                            Videolar
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveLessonsTab("exams")}
+                                            className={`px-[20px] py-[8px] font-[600] text-[14px] rounded-[8px] transition-all whitespace-nowrap ${activeLessonsTab === "exams"
+                                                    ? 'bg-white text-gray-900 shadow-sm'
+                                                    : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                        >
+                                            Imtihonlar
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveLessonsTab("journal")}
+                                            className={`px-[20px] py-[8px] font-[600] text-[14px] rounded-[8px] transition-all whitespace-nowrap ${activeLessonsTab === "journal"
+                                                    ? 'bg-white text-gray-900 shadow-sm'
+                                                    : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                        >
+                                            Jurnal
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {activeLessonsTab === "homework" && (
@@ -1055,7 +1215,7 @@ export default function GroupDetail() {
                                                                     {index + 1}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.title || lesson.name || lesson.subject || lesson.lesson_name || lesson.lessonName || "—"}
+                                                                    {lesson.title || lesson.name || lesson.subject || lesson.lesson_name || lesson.lessonName || "вЂ”"}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
                                                                     {lesson.submitted ?? lesson.students_count ?? 5}
@@ -1094,14 +1254,203 @@ export default function GroupDetail() {
                                 )}
 
                                 {activeLessonsTab === "videos" && (
-                                    <div className="border border-dashed border-gray-200 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
-                                        Videolar topilmadi
-                                    </div>
+                                    <>
+                                        {videosLoading ? (
+                                            <div className="border border-gray-100 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
+                                                <i className="fa-solid fa-spinner fa-spin mr-[8px]"></i>
+                                                Videolar yuklanmoqda...
+                                            </div>
+                                        ) : videosError ? (
+                                            <div className="border border-red-100 rounded-[12px] py-[34px] text-center text-red-400 font-[700]">
+                                                <i className="fa-solid fa-circle-exclamation mr-[8px]"></i>
+                                                {videosError}
+                                                <div className="mt-[12px]">
+                                                    <button
+                                                        onClick={fetchVideos}
+                                                        className="px-[16px] py-[8px] bg-teal-500 text-white rounded-[8px] text-[13px] font-[700] hover:bg-teal-600 transition-colors"
+                                                    >
+                                                        Qayta urinish
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : videos.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full">
+                                                    <thead>
+                                                        <tr className="border-b border-gray-100">
+                                                            <th className="px-[20px] py-[16px] text-left text-gray-400 font-[700] text-[13px] w-[60px]">#</th>
+                                                            <th className="px-[20px] py-[16px] text-left text-gray-400 font-[700] text-[13px]">Video nomi</th>
+                                                            <th className="px-[20px] py-[16px] text-left text-gray-400 font-[700] text-[13px]">Dars nomi</th>
+                                                            <th className="px-[20px] py-[16px] text-left text-gray-400 font-[700] text-[13px]">Status</th>
+                                                            <th className="px-[20px] py-[16px] text-left text-gray-400 font-[700] text-[13px]">Dars sanasi</th>
+                                                            <th className="px-[20px] py-[16px] text-left text-gray-400 font-[700] text-[13px]">Hajmi</th>
+                                                            <th className="px-[20px] py-[16px] text-left text-gray-400 font-[700] text-[13px]">Qo'shilgan vaqti</th>
+                                                            <th className="px-[20px] py-[16px] w-[40px]"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {videos.map((file, index) => {
+                                                            const fileId = file.id || file._id || index + 1
+                                                            const fileName = file.name || file.title || file.file_name || file.fileName || file.original_name || file.originalName || `Bitiruv.mp4`
+                                                            const fileSize = file.size || file.file_size || file.fileSize
+                                                            const createdAt = file.created_at || file.createdAt || file.date
+
+                                                            const formatSize = (bytes) => {
+                                                                if (!bytes) return "3.53 MB"
+                                                                const kb = bytes / 1024
+                                                                if (kb < 1024) return `${kb.toFixed(1)} KB`
+                                                                return `${(kb / 1024).toFixed(1)} MB`
+                                                            }
+
+                                                            return (
+                                                                <tr 
+                                                                    key={fileId} 
+                                                                    className={`border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer`}
+                                                                    onClick={() => {
+                                                                        console.log('Video clicked:', { url: file.url, fileName, fileSize });
+                                                                        setSelectedVideoPlayer({
+                                                                            url: file.url,
+                                                                            name: fileName,
+                                                                            size: formatSize(fileSize),
+                                                                            lesson: file.lesson_name || (index === 0 ? "Nodejs" : index === 1 ? "Html asoslari" : index === 2 ? "takrorlash" : "State and Props"),
+                                                                            date: createdAt ? formatDateOnly(createdAt) : (index === 0 ? "18 May, 2026" : index === 1 ? "18 May, 2026" : index === 2 ? "19 May, 2026" : "21 May, 2026")
+                                                                        });
+                                                                    }}
+                                                                >
+                                                                    <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
+                                                                        {index + 1}
+                                                                    </td>
+                                                                    <td className="px-[20px] py-[20px] text-blue-500 font-[600] text-[14px]">
+                                                                        <div className="flex items-center gap-[8px]">
+                                                                            <i className="fa-regular fa-circle-play text-[16px]"></i>
+                                                                            <span>{fileName}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
+                                                                        {file.lesson_name || (index === 0 ? "Nodejs" : index === 1 ? "Html asoslari" : index === 2 ? "takrorlash" : "State and Props")}
+                                                                    </td>
+                                                                    <td className="px-[20px] py-[20px]">
+                                                                        <span className="px-[12px] py-[4px] bg-green-50 text-green-500 rounded-full text-[12px] font-[700]">Tayyor</span>
+                                                                    </td>
+                                                                    <td className="px-[20px] py-[20px] text-gray-600 font-[500] text-[14px]">
+                                                                        {file.lesson_date ? formatDateOnly(file.lesson_date) : (index === 0 ? "14 May, 2026" : index === 1 ? "12 May, 2026" : index === 2 ? "19 May, 2026" : "21 May, 2026")}
+                                                                    </td>
+                                                                    <td className="px-[20px] py-[20px] text-gray-600 font-[500] text-[14px]">
+                                                                        {formatSize(fileSize)}
+                                                                    </td>
+                                                                    <td className="px-[20px] py-[20px] text-gray-600 font-[500] text-[14px]">
+                                                                        {createdAt ? formatDateOnly(createdAt) : (index === 0 ? "18 May, 2026" : index === 1 ? "18 May, 2026" : index === 2 ? "19 May, 2026" : "21 May, 2026")}
+                                                                    </td>
+                                                                    <td className="px-[20px] py-[20px] text-right relative">
+                                                                        <button 
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setOpenVideoMenuId(openVideoMenuId === fileId ? null : fileId);
+                                                                            }}
+                                                                            className="w-[28px] h-[28px] flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors ml-auto text-gray-400 hover:text-gray-700"
+                                                                        >
+                                                                            <i className="fa-solid fa-ellipsis-vertical text-[15px]"></i>
+                                                                        </button>
+                                                                        
+                                                                        {openVideoMenuId === fileId && (
+                                                                            <div className="absolute right-[40px] top-[50%] -translate-y-[50%] bg-white border border-gray-100 shadow-lg rounded-[8px] w-[140px] z-10 py-[4px] animate-fade-in">
+                                                                                <button 
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDeleteVideo(fileId);
+                                                                                    }}
+                                                                                    className="w-full text-left px-[16px] py-[8px] text-[13px] font-[600] text-red-500 hover:bg-red-50 transition-colors flex items-center gap-[8px]"
+                                                                                >
+                                                                                    <i className="fa-regular fa-trash-can"></i> O'chirish
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            )
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="border border-dashed border-gray-200 rounded-[12px] py-[48px] text-center">
+                                                <div className="w-[60px] h-[60px] bg-purple-50 rounded-full flex items-center justify-center mx-auto mb-[16px]">
+                                                    <i className="fa-solid fa-circle-play text-purple-400 text-[26px]"></i>
+                                                </div>
+                                                <p className="text-gray-500 font-[700] text-[15px]">Videolar topilmadi</p>
+                                                <p className="text-gray-400 font-[500] text-[13px] mt-[6px]">Bu guruh uchun hali video yuklanmagan</p>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
 
                                 {activeLessonsTab === "exams" && (
-                                    <div className="border border-dashed border-gray-200 rounded-[12px] py-[34px] text-center text-gray-400 font-[700]">
-                                        Imtihonlar topilmadi
+                                    <div className="animate-fade-in">
+                                        <div className="flex justify-end mb-[20px]">
+                                            <button 
+                                                onClick={() => navigate(`${location.pathname}/exams/create`)}
+                                                className="px-[24px] py-[10px] bg-[#00b87c] hover:bg-[#009e6a] text-white font-[700] rounded-[8px] transition-colors"
+                                            >
+                                                Yangi imtihon
+                                            </button>
+                                        </div>
+                                        <div className="overflow-x-auto border border-gray-100 rounded-[12px]">
+                                            <table className="w-full min-w-[900px]">
+                                                <thead>
+                                                    <tr className="border-b border-gray-100 bg-white">
+                                                        <th className="px-[24px] py-[18px] text-left text-gray-500 font-[700] text-[14px] w-[60px]">#</th>
+                                                        <th className="px-[20px] py-[18px] text-left text-gray-500 font-[700] text-[14px]">Mavzu</th>
+                                                        <th className="px-[20px] py-[18px] text-center text-gray-400 font-[500] text-[18px] w-[80px]">
+                                                            <i className="fa-regular fa-user"></i>
+                                                        </th>
+                                                        <th className="px-[20px] py-[18px] text-center text-[#f06548] font-[500] text-[18px] w-[80px]">
+                                                            <i className="fa-solid fa-xmark"></i>
+                                                        </th>
+                                                        <th className="px-[20px] py-[18px] text-left text-gray-500 font-[700] text-[14px] w-[120px]">Status</th>
+                                                        <th className="px-[20px] py-[18px] text-left text-gray-500 font-[700] text-[14px]">Dars vaqti</th>
+                                                        <th className="px-[20px] py-[18px] text-left text-gray-500 font-[700] text-[14px]">Berilgan vaqt</th>
+                                                        <th className="px-[20px] py-[18px] text-left text-gray-500 font-[700] text-[14px]">E'lon qilingan<br/>vaqti</th>
+                                                        <th className="px-[16px] py-[18px] w-[60px]"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {[
+                                                        { id: 7, title: "Examination", students: 12, misses: 0, status: "Faol", lessonTime: "22 May, 2026 09:30", givenTime: "22 May, 2026 09:28", announcedTime: "-" },
+                                                        { id: 6, title: "Examination", students: 12, misses: 0, status: "Tugagan", lessonTime: "24 Apr, 2026 09:30", givenTime: "24 Apr, 2026 09:25", announcedTime: "27 Apr, 2026 10:30" },
+                                                        { id: 5, title: "Examination", students: 14, misses: 0, status: "Tugagan", lessonTime: "26 Mart, 2026 09:30", givenTime: "26 Mart, 2026 09:23", announcedTime: "30 Mart, 2026 14:34" },
+                                                        { id: 4, title: "Examination", students: 16, misses: 0, status: "Tugagan", lessonTime: "26 Fev, 2026 09:30", givenTime: "26 Fev, 2026 09:28", announcedTime: "02 Mart, 2026 13:32" },
+                                                    ].map((exam) => (
+                                                        <tr 
+                                                            key={exam.id} 
+                                                            onClick={() => navigate(`${location.pathname}/exams/${exam.id}`)}
+                                                            className="border-b border-gray-50 bg-white hover:bg-gray-50/50 transition-colors cursor-pointer"
+                                                        >
+                                                            <td className="px-[24px] py-[18px] text-gray-900 font-[600] text-[14px]">{exam.id}</td>
+                                                            <td className="px-[20px] py-[18px] text-[#008de4] font-[600] text-[14px]">{exam.title}</td>
+                                                            <td className="px-[20px] py-[18px] text-center text-gray-900 font-[600] text-[14px]">{exam.students}</td>
+                                                            <td className="px-[20px] py-[18px] text-center text-gray-900 font-[600] text-[14px]">{exam.misses}</td>
+                                                            <td className="px-[20px] py-[18px]">
+                                                                <span className={`inline-flex items-center justify-center px-[16px] py-[4px] rounded-full text-[13px] font-[600] ${
+                                                                    exam.status === 'Faol' 
+                                                                        ? 'text-[#00b87c] border border-[#00b87c]' 
+                                                                        : 'text-gray-500 border border-gray-300'
+                                                                }`}>
+                                                                    {exam.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-[20px] py-[18px] text-gray-700 font-[500] text-[14px] pr-[10px] leading-[22px]">{exam.lessonTime}</td>
+                                                            <td className="px-[20px] py-[18px] text-gray-700 font-[500] text-[14px] pr-[10px] leading-[22px]">{exam.givenTime}</td>
+                                                            <td className="px-[20px] py-[18px] text-gray-700 font-[500] text-[14px] pr-[10px] leading-[22px]">{exam.announcedTime}</td>
+                                                            <td className="px-[16px] py-[18px] text-right">
+                                                                <button className="w-[32px] h-[32px] flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700 transition-colors ml-auto">
+                                                                    <i className="fa-solid fa-ellipsis-vertical text-[16px]"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 )}
 
@@ -1139,8 +1488,7 @@ export default function GroupDetail() {
                                 <div className="overflow-y-auto flex-1 p-[32px]">
                                     <div className="grid grid-cols-2 gap-[28px]">
                                         {mentors.map((teacher, index) => (
-                                            <div key={index} className="flex flex-col items-center gap-[12px] p-[12px] rounded-[12px] hover:bg-gray-50 transition-colors">
-                                                <div className="w-[100px] h-[100px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[32px] font-[600] overflow-hidden flex-shrink-0">
+                                            <div key={index} className="flex flex-col items-center gap-[12px] p-[12px] rounded-[12px] hover:bg-gray-50 transition-colors">                                                <div className="w-[100px] h-[100px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-[32px] font-[600] overflow-hidden flex-shrink-0">
                                                     {teacher?.avatar ? (
                                                         <img src={teacher.avatar} alt={teacher.name} className="w-full h-full object-cover" />
                                                     ) : (
@@ -1162,6 +1510,209 @@ export default function GroupDetail() {
                     )}
                 </div>
             </div>
+
+            {/* Video Qo'shish Modali */}
+            {isVideoModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-[20px]">
+                    <div
+                        className="absolute inset-0 bg-black/60 transition-opacity"
+                        onClick={() => setIsVideoModalOpen(false)}
+                    ></div>
+                    <div className="relative bg-white rounded-[16px] shadow-2xl w-full max-w-[800px] flex flex-col animate-fade-in">
+                        <div className="px-[24px] py-[20px] border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="text-[18px] font-[800] text-gray-900">Qo'shish</h3>
+                            <button
+                                onClick={() => setIsVideoModalOpen(false)}
+                                className="w-[32px] h-[32px] flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <i className="fa-solid fa-xmark text-[16px]"></i>
+                            </button>
+                        </div>
+                        <div className="p-[32px]">
+                            <label
+                                className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[16px] py-[60px] px-[20px] transition-colors cursor-pointer ${
+                                    videoDragOver ? 'border-[#00b87c] bg-[#00b87c]/5' : 'border-gray-200 hover:border-[#00b87c] bg-white'
+                                }`}
+                                onDragOver={(e) => { e.preventDefault(); setVideoDragOver(true); }}
+                                onDragLeave={() => setVideoDragOver(false)}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    setVideoDragOver(false);
+                                    if (e.dataTransfer.files?.[0]) setVideoFile(e.dataTransfer.files[0]);
+                                }}
+                            >
+                                <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".mp4,.webm,.mpeg,.avi,.mkv,.m4v,.ogm,.mov"
+                                    onChange={(e) => {
+                                        if (e.target.files?.[0]) setVideoFile(e.target.files[0]);
+                                    }}
+                                />
+                                <div className="mb-[24px] text-[#00b87c]">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+                                        <line x1="12" y1="10" x2="12" y2="16" />
+                                        <line x1="9" y1="13" x2="15" y2="13" />
+                                    </svg>
+                                </div>
+                                <p className="text-[16px] font-[700] text-gray-800 text-center mb-[12px]">
+                                    Videofaylni yuklash uchun ushbu hudud ustiga bosing yoki faylni shu yerga olib keling
+                                </p>
+                                <p className="text-[13px] font-[500] text-gray-400 text-center max-w-[80%]">
+                                    Videofayl: .mp4, .webm, .mpeg, .avi, .mkv, .m4v, .ogm, .mov formatlaridan birida bo'lishi kerak
+                                </p>
+                            </label>
+                            {videoFile && (
+                                <div className="mt-[24px] border border-gray-100 rounded-[12px] overflow-hidden">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-gray-100 bg-gray-50/50">
+                                                <th className="px-[20px] py-[12px] text-[13px] font-[700] text-gray-700">File name</th>
+                                                <th className="px-[20px] py-[12px] text-[13px] font-[700] text-gray-700"><span className="text-red-500">*</span> Dars</th>
+                                                <th className="px-[20px] py-[12px] text-[13px] font-[700] text-gray-700"><span className="text-red-500">*</span> Video nomi</th>
+                                                <th className="px-[20px] py-[12px] text-[13px] font-[700] text-gray-700 text-center">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr className="bg-white">
+                                                <td className="px-[20px] py-[16px] text-[14px] font-[500] text-gray-900 border-r border-gray-100">
+                                                    {videoFile.name}
+                                                </td>
+                                                <td className="px-[20px] py-[16px] border-r border-gray-100">
+                                                    <select className="w-full text-[14px] outline-none bg-transparent text-gray-500 cursor-pointer">
+                                                        <option value="">Darsni tanlang</option>
+                                                        {generalLessons?.map((l, index) => (
+                                                            <option key={l.id || l._id || index} value={l.id || l._id || index}>
+                                                                {l.name || l.title || l.lesson_name || l.lesson_title || l.mavzu || l.topic || l.lesson_topic || `Dars ${index + 1}`}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td className="px-[20px] py-[16px] border-r border-gray-100">
+                                                    <input type="text" className="w-full text-[14px] outline-none bg-transparent text-gray-900 font-[500]" defaultValue={videoFile.name} />
+                                                </td>
+                                                <td className="px-[20px] py-[16px] text-center">
+                                                    <button onClick={() => setVideoFile(null)} className="w-[32px] h-[32px] flex items-center justify-center rounded-[8px] hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors mx-auto">
+                                                        <i className="fa-regular fa-trash-can"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                        <div className="px-[24px] py-[20px] border-t border-gray-100 flex justify-end gap-[12px]">
+                            <button
+                                onClick={() => setIsVideoModalOpen(false)}
+                                className="px-[20px] py-[10px] font-[700] text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                onClick={handleVideoUpload}
+                                className={`px-[24px] py-[10px] font-[700] rounded-[8px] transition-colors shadow-sm ${videoFile && !isUploading ? 'bg-[#00b87c] hover:bg-[#009e6a] text-white' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                disabled={!videoFile || isUploading}
+                            >
+                                {isUploading ? (
+                                    <><i className="fa-solid fa-spinner fa-spin mr-[8px]"></i> Yuklanmoqda...</>
+                                ) : (
+                                    "Fayllarni yuklash"
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Video Player Modali */}
+            {selectedVideoPlayer && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-[40px]">
+                    <div
+                        className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+                        onClick={() => setSelectedVideoPlayer(null)}
+                    ></div>
+                    <div className="relative bg-[#1a1d27] rounded-[16px] shadow-2xl w-full max-w-[1000px] flex flex-col overflow-hidden animate-fade-in border border-gray-800">
+                        {/* Header */}
+                        <div className="px-[24px] py-[16px] flex items-center justify-between border-b border-gray-800/50 bg-[#1a1d27]">
+                            <div className="flex items-center gap-[12px] text-blue-400">
+                                <i className="fa-regular fa-circle-play text-[20px]"></i>
+                                <h3 className="text-[16px] font-[700] text-white tracking-wide">{selectedVideoPlayer.name}</h3>
+                            </div>
+                            <button
+                                onClick={() => setSelectedVideoPlayer(null)}
+                                className="w-[32px] h-[32px] flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            >
+                                <i className="fa-solid fa-xmark text-[16px]"></i>
+                            </button>
+                        </div>
+                        
+                        {/* Video Area */}
+                        <div className="w-full bg-black flex items-center justify-center relative aspect-video">
+                            {selectedVideoPlayer.url ? (
+                                <video 
+                                    src={selectedVideoPlayer.url} 
+                                    controls 
+                                    autoPlay 
+                                    className="w-full h-full object-contain"
+                                >
+                                    Your browser does not support the video tag.
+                                </video>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center gap-[16px] text-center">
+                                    <i className="fa-regular fa-circle-play text-white text-[64px] opacity-30"></i>
+                                    <p className="text-gray-400 text-[14px] font-[500]">Video yuklanmoqda yoki mavjud emas...</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer Details */}
+                        <div className="px-[24px] py-[16px] bg-[#1a1d27] border-t border-gray-800/50 flex flex-wrap items-center gap-x-[32px] gap-y-[12px]">
+                            <div className="text-[14px]">
+                                <span className="text-gray-400 font-[500]">Fayl:</span> <span className="text-white font-[700] ml-[4px]">{selectedVideoPlayer.name}</span>
+                            </div>
+                            <div className="text-[14px]">
+                                <span className="text-gray-400 font-[500]">Hajmi:</span> <span className="text-white font-[700] ml-[4px]">{selectedVideoPlayer.size}</span>
+                            </div>
+                            <div className="text-[14px]">
+                                <span className="text-gray-400 font-[500]">Dars:</span> <span className="text-white font-[700] ml-[4px]">{selectedVideoPlayer.lesson}</span>
+                            </div>
+                            <div className="text-[14px]">
+                                <span className="text-gray-400 font-[500]">Sana:</span> <span className="text-white font-[700] ml-[4px]">{selectedVideoPlayer.date}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* O'chirish tasdiqlash modali */}
+            {deleteConfirmId && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center p-[20px]">
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        onClick={() => setDeleteConfirmId(null)}
+                    ></div>
+                    <div className="relative bg-white rounded-[16px] shadow-2xl w-full max-w-[380px] p-[32px] animate-fade-in">
+                        <h3 className="text-[18px] font-[800] text-gray-900 mb-[12px]">Videoni o'chirish</h3>
+                        <p className="text-[14px] font-[500] text-gray-500 mb-[28px]">Rostdan ham o'chirishni xohlaysizmi?</p>
+                        <div className="flex items-center justify-end gap-[12px]">
+                            <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="px-[20px] py-[10px] font-[700] text-gray-500 hover:text-gray-700 text-[14px] transition-colors"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button
+                                onClick={confirmDeleteVideo}
+                                className="px-[28px] py-[10px] bg-[#e84a6a] hover:bg-[#d43a5a] text-white font-[700] text-[14px] rounded-[10px] transition-colors shadow-sm"
+                            >
+                                Ha
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

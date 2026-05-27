@@ -185,6 +185,11 @@ export default function Groups() {
     const [groupSaving, setGroupSaving] = useState(false)
     const [groupError, setGroupError] = useState("")
 
+    const [activeMenu, setActiveMenu] = useState(null)
+    const [groupToDelete, setGroupToDelete] = useState(null)
+    const [deleteLoading, setDeleteLoading] = useState(false)
+    const [deleteError, setDeleteError] = useState("")
+
     const [teachers, setTeachers] = useState([])
     const [teachersLoading, setTeachersLoading] = useState(false)
     const [teacherSearchTerm, setTeacherSearchTerm] = useState("")
@@ -376,7 +381,7 @@ export default function Groups() {
         try {
             const payload = {
                 name: courseName.trim(),
-                duration: courseTime,
+                duration_hours: parseInt(courseTime), // courseTime is e.g. "60 min", parsing it will extract 60
                 duration_month: Number(courseDuration),
                 price: Number(coursePrice),
                 description: courseDesc.trim()
@@ -450,12 +455,14 @@ export default function Groups() {
             }
 
             if (selectedTeacher) {
-                payload.teacher_id = selectedTeacher
+                payload.teachers = [Number(selectedTeacher)]
             }
 
             if (selectedStudents.length > 0) {
-                payload.students = selectedStudents
+                payload.students = selectedStudents.map(Number)
             }
+
+            console.log("Guruh yaratish payload:", JSON.stringify(payload, null, 2))
 
             const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/groups", {
                 method: "POST",
@@ -467,6 +474,7 @@ export default function Groups() {
             })
 
             const data = await response.json()
+            console.log("API javobi:", data)
 
             if (!response.ok) {
                 const errMsg = Array.isArray(data.message) ? data.message.join(", ") : (data.message || "Guruh qo'shishda xatolik yuz berdi")
@@ -489,6 +497,35 @@ export default function Groups() {
             setGroupError(error.message || "Guruh qo'shishda xatolik!")
         } finally {
             setGroupSaving(false)
+        }
+    }
+
+    const handleDeleteGroup = async () => {
+        if (!groupToDelete) return;
+        setDeleteLoading(true);
+        setDeleteError("");
+        const token = localStorage.getItem("token") || "";
+
+        try {
+            const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/groups/${groupToDelete.id}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                }
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.message || "Guruhni o'chirishda xatolik yuz berdi");
+            }
+
+            setGroupToDelete(null);
+            fetchGroups();
+        } catch (error) {
+            console.error("Error deleting group:", error);
+            setDeleteError(error.message || "Xatolik yuz berdi!");
+        } finally {
+            setDeleteLoading(false);
         }
     }
 
@@ -765,8 +802,26 @@ export default function Groups() {
                                             <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{group.room}</td>
                                             <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{group.teacher}</td>
                                             <td className="py-[16px] px-[24px] text-center font-[700] text-gray-800">{group.students}</td>
-                                            <td className="py-[16px] px-[24px] text-right" onClick={(e) => e.stopPropagation()}>
-                                                <i className="fa-solid fa-ellipsis-vertical text-gray-300 cursor-pointer hover:text-gray-600"></i>
+                                            <td className="py-[16px] px-[24px] text-right relative" onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveMenu(activeMenu === group.id ? null : group.id);
+                                            }}>
+                                                <i className="fa-solid fa-ellipsis-vertical px-[8px] py-[4px] text-gray-300 cursor-pointer hover:text-gray-600 transition-colors"></i>
+                                                
+                                                {activeMenu === group.id && (
+                                                    <div className="absolute right-[30px] top-[40px] bg-white shadow-lg border border-gray-100 rounded-[12px] z-[50] py-[8px] min-w-[160px] animate-fade-in">
+                                                        <button 
+                                                            className="w-full text-left px-[16px] py-[10px] text-[13px] font-[600] text-red-500 hover:bg-red-50 transition-colors flex items-center gap-[10px]"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveMenu(null);
+                                                                setGroupToDelete(group);
+                                                            }}
+                                                        >
+                                                            <i className="fa-solid fa-trash-can"></i> Guruhni o'chirish
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -836,6 +891,49 @@ export default function Groups() {
                     )}
                 </div>
             </div>
+
+            {/* Guruh o'chirish Modal */}
+            {groupToDelete && (
+                <div className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-[20px]">
+                    <div className="bg-white w-full max-w-[400px] rounded-[24px] shadow-2xl overflow-hidden animate-fade-in p-[24px]">
+                        <div className="flex items-center gap-[12px] mb-[16px]">
+                            <div className="w-[40px] h-[40px] rounded-full bg-red-50 flex items-center justify-center text-red-500">
+                                <i className="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                            <h3 className="text-[18px] font-[700] text-gray-800">Guruhni o'chirish</h3>
+                        </div>
+                        
+                        <p className="text-[14px] text-gray-600 mb-[24px] leading-relaxed">
+                            Haqiqatan ham <span className="font-[700] text-gray-900">"{groupToDelete.name}"</span> guruhini o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.
+                        </p>
+                        
+                        {deleteError && (
+                            <p className="text-[13px] text-red-500 font-[500] mb-[16px]">{deleteError}</p>
+                        )}
+
+                        <div className="flex justify-end gap-[12px]">
+                            <button
+                                className="px-[20px] py-[10px] text-gray-600 font-[600] hover:bg-gray-100 rounded-[10px] transition-colors"
+                                onClick={() => {
+                                    setGroupToDelete(null);
+                                    setDeleteError("");
+                                }}
+                                disabled={deleteLoading}
+                            >
+                                Bekor qilish
+                            </button>
+                            <button
+                                className={`px-[20px] py-[10px] font-[600] rounded-[10px] transition-colors shadow-md flex items-center gap-[8px] ${deleteLoading ? 'bg-red-400 text-white cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                                onClick={handleDeleteGroup}
+                                disabled={deleteLoading}
+                            >
+                                {deleteLoading && <i className="fa-solid fa-spinner fa-spin"></i>}
+                                {deleteLoading ? "O'chirilmoqda..." : "O'chirish"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Guruh qo'shish Drawer */}
             {isDrawerOpen && (
@@ -1190,8 +1288,12 @@ export default function Groups() {
                                     Bekor qilish
                                 </button>
                                 <button
+                                    type="button"
                                     className={`px-[30px] py-[10px] font-[600] rounded-[12px] transition-colors shadow-md ${courseSaving ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-purple-600 text-white hover:bg-purple-700'}`}
-                                    onClick={handleSaveCourse}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        handleSaveCourse();
+                                    }}
                                     disabled={courseSaving}
                                 >
                                     {courseSaving ? "Saqlanmoqda..." : "Saqlash"}

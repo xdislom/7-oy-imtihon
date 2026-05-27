@@ -16,6 +16,32 @@ export default function Teachers() {
         setTimeout(() => setToast(null), 3500)
     }
 
+    const openEditDrawer = (teacher) => {
+        setEditingTeacher(teacher)
+        setFormData({
+            name: teacher.name || '',
+            phone: teacher.phone || '+998',
+            email: teacher.email || '',
+            address: teacher.address || '',
+            password: ''
+        })
+        setSelectedGroups(teacher.groups || [])
+        setIsDrawerOpen(true)
+    }
+
+    const resetForm = () => {
+        setEditingTeacher(null)
+        setFormData({
+            name: '',
+            phone: '+998',
+            email: '',
+            address: '',
+            password: ''
+        })
+        setSelectedGroups([])
+        setSelectedImage(null)
+    }
+
     const [availableGroups, setAvailableGroups] = useState([])
     const [selectedGroups, setSelectedGroups] = useState([])
     const [tempSelected, setTempSelected] = useState([])
@@ -25,6 +51,7 @@ export default function Teachers() {
     const [groupSearchTerm, setGroupSearchTerm] = useState('')
     const [selectedImage, setSelectedImage] = useState(null)
     const [isLoading, setIsLoading] = useState(false)
+    const [editingTeacher, setEditingTeacher] = useState(null)
 
     const [formData, setFormData] = useState({
         name: '',
@@ -96,7 +123,7 @@ export default function Teachers() {
         fetchGroups()
     }, [])
 
-    // O'qituvchini saqlash (POST)
+    // O'qituvchini saqlash (POST) yoki yangilash (PATCH)
     const handleSave = async () => {
         if (!formData.name || formData.phone === '+998') {
             alert("Iltimos, o'qituvchi ismi va telefon raqamini kiriting!")
@@ -110,13 +137,19 @@ export default function Teachers() {
                 phone: formData.phone,
                 email: formData.email,
                 address: formData.address,
-                password: formData.password,
+                ...(formData.password && { password: formData.password }),
                 groups: selectedGroups.map(g => typeof g === 'object' ? g.id : g)
             }
 
             const token = localStorage.getItem("token") || ""
-            const response = await fetch('https://najot-edu.softwareengineer.uz/api/v1/teachers', {
-                method: 'POST',
+            const isUpdate = !!editingTeacher
+            const method = isUpdate ? "PATCH" : "POST"
+            const url = isUpdate 
+                ? `https://najot-edu.softwareengineer.uz/api/v1/teachers/${editingTeacher.id}`
+                : 'https://najot-edu.softwareengineer.uz/api/v1/teachers'
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
@@ -125,18 +158,28 @@ export default function Teachers() {
             })
 
             if (response.ok) {
-                showToast("success", "O'qituvchi muvaffaqiyatli qo'shildi!")
+                if (isUpdate) {
+                    // Update existing teacher in list
+                    setTeachersList(prev => prev.map(t => 
+                        t.id === editingTeacher.id
+                            ? {
+                                ...t,
+                                name: formData.name,
+                                phone: formData.phone,
+                                email: formData.email,
+                                address: formData.address,
+                                groups: selectedGroups.map(g => typeof g === 'object' ? g.name : g)
+                              }
+                            : t
+                    ))
+                    showToast("success", `"${formData.name}" muvaffaqiyatli yangilandi!`)
+                } else {
+                    // Add new teacher
+                    showToast("success", "O'qituvchi muvaffaqiyatli qo'shildi!")
+                    fetchTeachers()
+                }
                 setIsDrawerOpen(false)
-                setFormData({
-                    name: '',
-                    phone: '+998',
-                    email: '',
-                    address: '',
-                    password: '',
-                })
-                setSelectedGroups([])
-                setSelectedImage(null)
-                fetchTeachers()
+                resetForm()
             } else {
                 showToast("error", "Xatolik yuz berdi")
             }
@@ -239,7 +282,10 @@ export default function Teachers() {
                             </Button>
                             <Button
                                 variant="contained"
-                                onClick={() => setIsDrawerOpen(true)}
+                                onClick={() => {
+                                    resetForm()
+                                    setIsDrawerOpen(true)
+                                }}
                                 sx={{ bgcolor: '#7c3aed', textTransform: 'none', borderRadius: '10px', fontWeight: 600, px: 3, '&:hover': { bgcolor: '#6d28d9' } }}
                             >
                                 + O'qituvchi qo'shish
@@ -317,7 +363,10 @@ export default function Teachers() {
                                                         className="fa-regular fa-trash-can cursor-pointer hover:text-red-500"
                                                         onClick={() => confirmDelete(teacher.id)}
                                                     ></i>
-                                                    <i className="fa-regular fa-pen-to-square cursor-pointer hover:text-purple-600"></i>
+                                                    <i 
+                                                        className="fa-regular fa-pen-to-square cursor-pointer hover:text-purple-600"
+                                                        onClick={() => openEditDrawer(teacher)}
+                                                    ></i>
                                                 </div>
                                             </td>
                                         </tr>
@@ -344,11 +393,20 @@ export default function Teachers() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="p-[24px] border-b relative">
-                            <h3 className="text-[20px] font-[700] mb-1">O'qituvchi qo'shish</h3>
-                            <p className="text-[13px] text-gray-500">Bu yerda siz yangi o'qituvchi qo'shishingiz mumkin.</p>
+                            <h3 className="text-[20px] font-[700] mb-1">
+                                {editingTeacher ? "O'qituvchini tahrir qilish" : "O'qituvchi qo'shish"}
+                            </h3>
+                            <p className="text-[13px] text-gray-500">
+                                {editingTeacher 
+                                    ? "O'qituvchining ma'lumotlarini yangilang." 
+                                    : "Bu yerda siz yangi o'qituvchi qo'shishingiz mumkin."}
+                            </p>
                             <i
                                 className="fa-solid fa-xmark absolute top-[24px] right-[24px] text-gray-400 cursor-pointer text-[20px] hover:text-red-500"
-                                onClick={() => setIsDrawerOpen(false)}
+                                onClick={() => {
+                                    setIsDrawerOpen(false)
+                                    resetForm()
+                                }}
                             ></i>
                         </div>
 
@@ -452,9 +510,21 @@ export default function Teachers() {
                         </div>
 
                         <div className="p-[24px] border-t bg-white flex gap-[12px]">
-                            <button className="flex-1 py-[12px] text-[#4a5568] font-[700] border border-gray-200 rounded-[12px] bg-[#edf2f7] hover:bg-gray-200 transition-colors" onClick={() => setIsDrawerOpen(false)}>Bekor qilish</button>
-                            <button className="flex-1 py-[12px] bg-[#6366f1] text-white font-[700] rounded-[12px] hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50" onClick={handleSave} disabled={isLoading}>
-                                {isLoading ? "Saqlanmoqda..." : "Saqlash"}
+                            <button 
+                                className="flex-1 py-[12px] text-[#4a5568] font-[700] border border-gray-200 rounded-[12px] bg-[#edf2f7] hover:bg-gray-200 transition-colors" 
+                                onClick={() => {
+                                    setIsDrawerOpen(false)
+                                    resetForm()
+                                }}
+                            >
+                                Bekor qilish
+                            </button>
+                            <button 
+                                className="flex-1 py-[12px] bg-[#6366f1] text-white font-[700] rounded-[12px] hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-50" 
+                                onClick={handleSave} 
+                                disabled={isLoading}
+                            >
+                                {isLoading ? "Saqlanmoqda..." : (editingTeacher ? "Yangilash" : "Saqlash")}
                             </button>
                         </div>
                     </div>
