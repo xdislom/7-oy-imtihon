@@ -107,7 +107,7 @@ export default function Login() {
                         <button
                             type="button"
                             onClick={() => setShowPassword(prev => !prev)}
-                            className="absolute right-[15px] top-[50%] -translate-y-[50%] text-gray-500 hover:text-gray-700"
+                            className="absolute right-[15px] top-[48px] -translate-y-1/4 text-gray-500 hover:text-gray-700"
                             aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rish"}
                         >
                             <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />

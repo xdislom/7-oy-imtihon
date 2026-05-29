@@ -1,4 +1,4 @@
-﻿
+
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Sidebar from "../components/Sidebar"
@@ -435,15 +435,36 @@ export default function GroupDetail() {
 
         setAttendanceSaving(true)
         try {
+            const tok = (token || '').replace(/^Bearer\s+/i, '').trim()
+            const headers = {
+                'Authorization': `Bearer ${tok}`,
+                'Content-Type': 'application/json'
+            }
+
+            // API ga har bir talaba uchun davomat yuborish
+            const promises = groupStudents.map(student =>
+                fetch(`${API_URL}/attendance`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        student_id: student.id,
+                        group_id: Number(groupId) || groupId,
+                        date: selectedDate,
+                        is_present: !!attendance[student.id]
+                    })
+                }).catch(err => console.warn('Attendance post error for student', student.id, err))
+            )
+            await Promise.allSettled(promises)
+
             const newTaughtDates = { ...taughtDates, [selectedDate]: true };
             setTaughtDates(newTaughtDates);
             localStorage.setItem(`taughtDates_${groupId}`, JSON.stringify(newTaughtDates));
             saveAttendanceForDate(selectedDate, attendance)
-            setAttendanceMessage('Yo\'qlama saqlandi')
+            setAttendanceMessage("Yo'qlama saqlandi")
             setAttendanceError(false)
         } catch (err) {
             console.error('Attendance save error:', err)
-            setAttendanceMessage('Yo\'qlama saqlanmadi')
+            setAttendanceMessage("Yo'qlama saqlanmadi")
             setAttendanceError(true)
         } finally {
             setAttendanceSaving(false)
@@ -502,6 +523,61 @@ export default function GroupDetail() {
         { id: 4, name: "Axmadjon", role: "Teacher" }
     ]
 
+    // API dan tanlangan sana uchun davomat holatini yuklash
+    const fetchAttendanceFromApi = async (date, students) => {
+        const tok = (token || '').replace(/^Bearer\s+/i, '').trim()
+        if (!tok || !date || !students.length) return
+        try {
+            const res = await fetch(`${API_URL}/attendance/all`, {
+                headers: { 'Authorization': `Bearer ${tok}` }
+            })
+            const init = {}
+            students.forEach(s => { init[s.id] = false })
+
+            if (!res.ok) {
+                const saved = getSavedAttendance(date)
+                setAttendance(Object.keys(saved).length ? { ...init, ...saved } : init)
+                return
+            }
+
+            const data = await res.json()
+            const list = Array.isArray(data) ? data
+                : Array.isArray(data?.data) ? data.data
+                : Array.isArray(data?.data?.data) ? data.data.data
+                : []
+
+            // Shu guruh va sana bo'yicha filtrlash
+            const filtered = list.filter(rec => {
+                const recDate = (rec.date || rec.lesson_date || rec.created_at || '').slice(0, 10)
+                const recGroupId = String(rec.group_id || rec.group?.id || '')
+                return recDate === date && recGroupId === String(groupId)
+            })
+
+            if (filtered.length > 0) {
+                filtered.forEach(rec => {
+                    const sid = String(rec.student_id || rec.student?.id || '')
+                    if (sid) {
+                        const isPresent = rec.is_present !== undefined ? !!rec.is_present
+                            : rec.present !== undefined ? !!rec.present
+                            : String(rec.status || '').toLowerCase() === 'present'
+                        init[sid] = isPresent
+                    }
+                })
+                setAttendance({ ...init })
+            } else {
+                // Bu sana uchun API da ma'lumot yo'q – localStorage fallback
+                const saved = getSavedAttendance(date)
+                setAttendance(Object.keys(saved).length ? { ...init, ...saved } : init)
+            }
+        } catch (err) {
+            console.warn('fetchAttendanceFromApi error:', err)
+            const saved = getSavedAttendance(date)
+            const init = {}
+            students.forEach(s => { init[s.id] = false })
+            setAttendance(Object.keys(saved).length ? { ...init, ...saved } : init)
+        }
+    }
+
     const fetchGroupStudents = async () => {
         if (!token || token === "undefined" || token === "null") return
         setStudentsLoading(true)
@@ -523,11 +599,11 @@ export default function GroupDetail() {
                     avatar: s.avatar || s.photo || null
                 }))
                 setGroupStudents(normalized)
-                // Barcha talabalar uchun attendance false bilan initsializatsiya
-                const init = {}
-                normalized.forEach(s => { init[s.id] = false })
-                const saved = getSavedAttendance(selectedDate)
-                setAttendance(Object.keys(saved).length ? { ...init, ...saved } : init)
+                // Davomat holatini API dan yuklash (localStorage fallback bilan)
+                const initEmpty = {}
+                normalized.forEach(s => { initEmpty[s.id] = false })
+                setAttendance(initEmpty)
+                fetchAttendanceFromApi(selectedDate, normalized)
             }
         } catch (err) {
             console.error('Students fetch error:', err)

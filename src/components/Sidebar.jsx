@@ -7,8 +7,8 @@ const navItems = [
     { to: "/dashboard", icon: "fa-solid fa-house", label: "Asosiy" },
     { to: "/teachers", icon: "fa-solid fa-user-tie", label: "O'qituvchilar" },
     { to: "/classes", icon: "fa-solid fa-book-journal-whills", label: "Guruhlar" },
-    { to: "/students", icon: "fa-solid fa-user-graduate", label: "Talabalar" },
-    { to: "/gifts", icon: "fa-regular fa-gem", label: "Sovg'alar" },
+    { to: "/students",   icon: "fa-solid fa-user-graduate", label: "Talabalar" },
+    { to: "/gifts",      icon: "fa-regular fa-gem",          label: "Sovg'alar" },
     { to: "/settings", icon: "fa-solid fa-sliders", label: "Boshqarish" },
 ]
 
