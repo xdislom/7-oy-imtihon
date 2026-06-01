@@ -25,6 +25,8 @@ const cardColors = [
 function XonalarTab() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [roomsList, setRoomsList] = useState([])
+    const [showRoomArchive, setShowRoomArchive] = useState(false)
+    const [archivedRooms, setArchivedRooms] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -67,6 +69,32 @@ function XonalarTab() {
             
             const list = findRoomsArray(data)
             setRoomsList(list.map((room, index) => ({
+                id: room.id || room._id || index + 1,
+                name: room.name || room.title || `Xona ${index + 1}`,
+                capacity: room.capacity || room.max_student || room.maxStudent || 0
+            })))
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const fetchArchivedRooms = async () => {
+        setLoading(true)
+        setError("")
+        const token = localStorage.getItem("token")
+        
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/rooms/arxive", {
+                headers: token ? { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` } : {}
+            })
+            
+            const data = await response.json()
+            if (!response.ok) throw new Error(data.message || "Arxiv xonalarni yuklashda xatolik yuz berdi")
+            
+            const list = findRoomsArray(data)
+            setArchivedRooms(list.map((room, index) => ({
                 id: room.id || room._id || index + 1,
                 name: room.name || room.title || `Xona ${index + 1}`,
                 capacity: room.capacity || room.max_student || room.maxStudent || 0
@@ -213,12 +241,34 @@ function XonalarTab() {
 
     return (
         <div className="relative">
-            <div className="flex justify-between items-center mb-[20px]">
-                <div className="flex items-center gap-3">
-                    <h3 className="text-[22px] font-[600]">Xonalar</h3>
-                    <button onClick={fetchRooms} className="text-gray-400 hover:text-purple-600" disabled={loading}>
-                        <i className={`fa-solid fa-rotate-right cursor-pointer ${loading ? 'animate-spin' : ''}`}></i>
-                    </button>
+            <div className="flex justify-between items-start mb-[20px]">
+                <div>
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-[22px] font-[600]">Xonalar</h3>
+                        <button onClick={showRoomArchive ? fetchArchivedRooms : fetchRooms} className="text-gray-400 hover:text-purple-600" disabled={loading}>
+                            <i className={`fa-solid fa-rotate-right cursor-pointer ${loading ? 'animate-spin' : ''}`}></i>
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-6 mt-3">
+                        <button 
+                            onClick={() => {
+                                setShowRoomArchive(false);
+                                fetchRooms();
+                            }}
+                            className={`text-[15px] font-[600] transition-colors ${!showRoomArchive ? 'text-[#3366FF]' : 'text-gray-500 hover:text-[#3366FF]'}`}
+                        >
+                            Xonalar
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setShowRoomArchive(true);
+                                fetchArchivedRooms();
+                            }}
+                            className={`text-[15px] font-[600] flex items-center gap-2 transition-colors ${showRoomArchive ? 'text-[#3366FF]' : 'text-gray-500 hover:text-[#3366FF]'}`}
+                        >
+                            <i className="fa-solid fa-box-archive text-[14px]"></i> Arxiv
+                        </button>
+                    </div>
                 </div>
                 <Button
                     variant="contained"
@@ -233,25 +283,32 @@ function XonalarTab() {
                 <div className="text-center py-8 text-gray-500 font-[600]">Xonalar yuklanmoqda...</div>
             ) : error ? (
                 <div className="text-center py-8 text-red-500 font-[600]">{error}</div>
-            ) : roomsList.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 font-[600]">Xonalar topilmadi</div>
+            ) : (showRoomArchive ? archivedRooms : roomsList).length === 0 ? (
+                <div className="text-center py-8 text-gray-500 font-[600]">{showRoomArchive ? "Arxivlangan xonalar topilmadi" : "Xonalar topilmadi"}</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[16px]">
-                    {roomsList.map(room => (
+                    {(showRoomArchive ? archivedRooms : roomsList).map(room => (
                         <div key={room.id} className="bg-white rounded-[12px] p-[16px] border border-gray-100 flex justify-between items-center shadow-sm">
                             <div>
                                 <p className="text-[15px] font-[600] text-gray-800">{room.name}</p>
                                 <p className="text-[13px] text-gray-500">Sig'imi: {room.capacity}</p>
                             </div>
                             <div className="flex gap-[8px]">
-                                <i 
-                                    className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"
-                                    onClick={() => confirmDelete(room.id)}
-                                ></i>
-                                <i
-                                    className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"
-                                    onClick={() => openEditRoom(room)}
-                                ></i>
+                                {!showRoomArchive && (
+                                    <>
+                                        <i 
+                                            className="fa-regular fa-trash-can text-gray-400 hover:text-red-500 cursor-pointer"
+                                            onClick={() => confirmDelete(room.id)}
+                                        ></i>
+                                        <i
+                                            className="fa-regular fa-pen-to-square text-gray-400 hover:text-purple-600 cursor-pointer"
+                                            onClick={() => openEditRoom(room)}
+                                        ></i>
+                                    </>
+                                )}
+                                {showRoomArchive && (
+                                    <span className="text-[11px] font-[700] text-gray-400">ARXIV</span>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -349,6 +406,7 @@ function XonalarTab() {
 function KurslarTab() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [coursesList, setCoursesList] = useState([])
+    const [showArchive, setShowArchive] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -382,13 +440,16 @@ function KurslarTab() {
         return []
     }
 
-    const fetchCourses = async () => {
+    const fetchCourses = async (isArchive = showArchive) => {
         setLoading(true)
         setError("")
         const token = localStorage.getItem("token")
         
         try {
-            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/courses", {
+            const url = isArchive 
+                ? "https://najot-edu.softwareengineer.uz/api/v1/courses/archive" 
+                : "https://najot-edu.softwareengineer.uz/api/v1/courses"
+            const response = await fetch(url, {
                 headers: token ? { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` } : {}
             })
             
@@ -581,12 +642,34 @@ function KurslarTab() {
 
     return (
         <div className="relative">
-            <div className="flex justify-between items-center mb-[20px]">
-                <div className="flex items-center gap-3">
-                    <h3 className="text-[22px] font-[600]">Kurslar</h3>
-                    <button onClick={fetchCourses} className="text-gray-400 hover:text-purple-600" disabled={loading}>
-                        <i className={`fa-solid fa-rotate-right cursor-pointer ${loading ? 'animate-spin' : ''}`}></i>
-                    </button>
+            <div className="flex justify-between items-start mb-[20px]">
+                <div>
+                    <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-[22px] font-[600]">Kurslar</h3>
+                        <button onClick={() => fetchCourses()} className="text-gray-400 hover:text-purple-600" disabled={loading}>
+                            <i className={`fa-solid fa-rotate-right cursor-pointer ${loading ? 'animate-spin' : ''}`}></i>
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-8 mt-4">
+                        <button 
+                            onClick={() => {
+                                setShowArchive(false);
+                                fetchCourses(false);
+                            }}
+                            className={`text-[15px] font-[600] transition-colors ${!showArchive ? 'text-[#3366FF]' : 'text-[#475569] hover:text-[#3366FF]'}`}
+                        >
+                            Kurslar
+                        </button>
+                        <button 
+                            onClick={() => {
+                                setShowArchive(true);
+                                fetchCourses(true);
+                            }}
+                            className={`text-[15px] font-[600] flex items-center gap-2 transition-colors ${showArchive ? 'text-[#3366FF]' : 'text-[#475569] hover:text-[#3366FF]'}`}
+                        >
+                            <i className="fa-solid fa-box-archive text-[14px]"></i> Arxiv
+                        </button>
+                    </div>
                 </div>
                 <Button
                     variant="contained"

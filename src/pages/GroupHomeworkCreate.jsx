@@ -40,8 +40,63 @@ export default function GroupHomeworkCreate() {
     const [formError, setFormError] = useState("")
     const [successMsg, setSuccessMsg] = useState("")
     const [dragOver, setDragOver] = useState(false)
+    const [lessons, setLessons] = useState([])
+    const [lessonsLoading, setLessonsLoading] = useState(false)
 
     const getToken = () => localStorage.getItem("token") || ""
+
+    const findArray = (value) => {
+        if (Array.isArray(value)) return value
+        if (!value || typeof value !== 'object') return []
+        if (Array.isArray(value.data)) return value.data
+        if (value.data && Array.isArray(value.data.data)) return value.data.data
+        if (Array.isArray(value.lessons)) return value.lessons
+        if (Array.isArray(value.items)) return value.items
+        if (Array.isArray(value.rows)) return value.rows
+        for (const key of Object.keys(value)) {
+            if (Array.isArray(value[key])) return value[key]
+            if (value[key] && typeof value[key] === 'object') {
+                const nested = findArray(value[key])
+                if (nested.length > 0) return nested
+            }
+        }
+        return []
+    }
+
+    const fetchLessons = async () => {
+        const token = getToken()
+        if (!token || token === "undefined" || token === "null") return
+        setLessonsLoading(true)
+        try {
+            const headers = { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` }
+            
+            // Birinchi /lessons/my/group/:groupId ga urinamiz
+            let res = await fetch(`${API_URL}/lessons/my/group/${groupId}`, { headers })
+            if (res.ok) {
+                const data = await res.json()
+                const list = findArray(data)
+                console.log("📖 Lessons from /lessons/my/group:", list)
+                if (list.length > 0) {
+                    setLessons(list)
+                    setLessonsLoading(false)
+                    return
+                }
+            }
+
+            // Agar bo'sh bo'lsa, /homework/:groupId dan topic larni olamiz
+            res = await fetch(`${API_URL}/homework/${groupId}`, { headers })
+            if (res.ok) {
+                const data = await res.json()
+                const list = findArray(data)
+                console.log("📖 Lessons from /homework:", list)
+                setLessons(list)
+            }
+        } catch (err) {
+            console.error("Lessons fetch error:", err)
+        } finally {
+            setLessonsLoading(false)
+        }
+    }
 
     const fetchGroup = async () => {
         const token = getToken()
@@ -80,6 +135,7 @@ export default function GroupHomeworkCreate() {
 
     useEffect(() => {
         fetchGroup()
+        fetchLessons()
     }, [groupId])
 
     const handleFileChange = (event) => {
@@ -170,15 +226,16 @@ export default function GroupHomeworkCreate() {
                 return
             }
 
-            if (!response.ok) {
-                setFormError(data.message || `Xatolik: ${response.status}`)
+            if (!response.ok || data.success === false || data.error) {
+                setFormError(data.message || data.error || `Xatolik yuz berdi. Status: ${response.status}. API javobi: ${JSON.stringify(data)}`)
+                setSaving(false)
                 return
             }
 
-            setSuccessMsg("✅ Uyga vazifa muvaffaqiyatli yaratildi!")
+            setSuccessMsg("Uyga vazifa muvaffaqiyatli yaratildi! " + JSON.stringify(data))
             setTimeout(() => {
                 navigate(`/classes/groups/${groupId}?tab=lessons`)
-            }, 1500)
+            }, 3000)
         } catch (err) {
             console.error("Error creating homework:", err)
             setFormError("Server bilan bog'lanishda xatolik")
@@ -256,19 +313,48 @@ export default function GroupHomeworkCreate() {
                                     )}
                                 </div>
 
-                                {/* Dars ID */}
+                                {/* Dars tanlash yoki kiritish */}
                                 <div>
                                     <label className="block text-[15px] font-[700] text-gray-800 mb-[10px]">
                                         Dars ID <span className="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        type="number"
-                                        value={lessonId}
-                                        onChange={(e) => setLessonId(e.target.value)}
-                                        placeholder="Masalan: 1, 2, 3..."
-                                        className="w-full rounded-[8px] border border-gray-200 bg-white px-[20px] py-[16px] text-gray-900 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors shadow-sm text-[15px]"
-                                    />
-                                    <p className="mt-[8px] text-[13px] text-gray-500 font-[500]">Bu vazifa qaysi darsga tegishli ekanligini bildiradi (API uchun raqam kiritilishi shart).</p>
+                                    
+                                    {lessons.length > 0 ? (
+                                        <div className="relative">
+                                            <select
+                                                value={lessonId}
+                                                onChange={(e) => setLessonId(e.target.value)}
+                                                className={`w-full appearance-none px-[20px] py-[16px] rounded-[8px] border border-gray-200 outline-none text-[15px] bg-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors shadow-sm ${!lessonId ? 'text-gray-500' : 'text-gray-900'}`}
+                                            >
+                                                <option value="" disabled>Darsni tanlang</option>
+                                                {lessons.map((l, index) => (
+                                                    <option key={l.id || l._id || index} value={l.id || l._id || index}>
+                                                        {l.topic || l.title || l.name || `Dars ${index + 1}`} (ID: {l.id || l._id || index})
+                                                    </option>
+                                                ))}
+                                                <option value="custom">Boshqa (Qo'lda kiritish)</option>
+                                            </select>
+                                            <i className="fa-solid fa-chevron-down absolute right-[20px] top-1/2 -translate-y-1/2 text-gray-600 text-[14px] pointer-events-none"></i>
+                                        </div>
+                                    ) : (
+                                        <input
+                                            type="number"
+                                            value={lessonId}
+                                            onChange={(e) => setLessonId(e.target.value)}
+                                            placeholder="Dars ID sini kiriting (masalan: 1, 2, 3...)"
+                                            className="w-full rounded-[8px] border border-gray-200 bg-white px-[20px] py-[16px] text-gray-900 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors shadow-sm text-[15px]"
+                                        />
+                                    )}
+
+                                    {lessonId === 'custom' && (
+                                        <input
+                                            type="number"
+                                            onChange={(e) => setLessonId(e.target.value)}
+                                            placeholder="Dars ID sini kiriting (masalan: 1, 2, 3...)"
+                                            className="w-full mt-[12px] rounded-[8px] border border-gray-200 bg-white px-[20px] py-[16px] text-gray-900 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors shadow-sm text-[15px]"
+                                        />
+                                    )}
+                                    <p className="mt-[8px] text-[13px] text-gray-500 font-[500]">Bu vazifa qaysi darsga tegishli ekanligini bildiradi.</p>
                                 </div>
 
                                 {/* Izoh */}

@@ -19,10 +19,10 @@ export default function Teachers() {
     const openEditDrawer = (teacher) => {
         setEditingTeacher(teacher)
         setFormData({
-            name: teacher.name || '',
-            phone: teacher.phone || '+998',
-            email: teacher.email || '',
-            address: teacher.address || '',
+            name: teacher.name !== "Noma'lum o'qituvchi" ? teacher.name : '',
+            phone: teacher.phone !== "Noma'lum" ? teacher.phone : '+998',
+            email: teacher.email && teacher.email !== "Noma'lum" ? teacher.email : '',
+            address: teacher.address && teacher.address !== "Noma'lum" ? teacher.address : '',
             password: ''
         })
         setSelectedGroups(teacher.groups || [])
@@ -48,6 +48,8 @@ export default function Teachers() {
     const [teachersList, setTeachersList] = useState([])
 
     const [searchTerm, setSearchTerm] = useState('')
+    const [showArchive, setShowArchive] = useState(false)
+    const [isFetching, setIsFetching] = useState(false)
     const [groupSearchTerm, setGroupSearchTerm] = useState('')
     const [selectedImage, setSelectedImage] = useState(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -74,10 +76,14 @@ export default function Teachers() {
     }
 
     // API'dan o'qituvchilarni olib kelish
-    const fetchTeachers = async () => {
+    const fetchTeachers = async (isArchive = showArchive) => {
+        setIsFetching(true)
         const token = localStorage.getItem("token") || ""
         try {
-            const res = await fetch('https://najot-edu.softwareengineer.uz/api/v1/teachers', {
+            const url = isArchive 
+                ? 'https://najot-edu.softwareengineer.uz/api/v1/teachers/archive'
+                : 'https://najot-edu.softwareengineer.uz/api/v1/teachers'
+            const res = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${token.replace(/^Bearer\s+/i, '')}`
                 }
@@ -96,6 +102,8 @@ export default function Teachers() {
             }
         } catch (error) {
             console.error("Xatolik:", error)
+        } finally {
+            setIsFetching(false)
         }
     }
 
@@ -132,17 +140,17 @@ export default function Teachers() {
 
         try {
             setIsLoading(true)
+            const isUpdate = !!editingTeacher
             const payload = {
                 full_name: formData.name,
-                phone: formData.phone,
-                email: formData.email,
-                address: formData.address,
-                ...(formData.password && { password: formData.password }),
-                groups: selectedGroups.map(g => typeof g === 'object' ? g.id : g)
+                phone: formData.phone
             }
+            if (formData.email && formData.email !== "Noma'lum") payload.email = formData.email
+            if (formData.address && formData.address !== "Noma'lum") payload.address = formData.address
+            if (formData.password) payload.password = formData.password
+            if (selectedGroups.length > 0) payload.groups = selectedGroups.map(g => typeof g === 'object' ? (g.id || g._id || g.name) : g)
 
             const token = localStorage.getItem("token") || ""
-            const isUpdate = !!editingTeacher
             const method = isUpdate ? "PATCH" : "POST"
             const url = isUpdate 
                 ? `https://najot-edu.softwareengineer.uz/api/v1/teachers/${editingTeacher.id}`
@@ -157,7 +165,21 @@ export default function Teachers() {
                 body: JSON.stringify(payload)
             })
 
-            if (response.ok) {
+            let data = {}
+            try {
+                data = await response.json()
+            } catch (e) {}
+
+            let isSuccess = response.ok
+
+            // Backend ba'zida PATCH so'rovidan keyin avtomat GET ga yo'naltiradi, 
+            // lekin u endpoint yo'qligi sababli "Cannot GET" 404 xatosi chiqadi. 
+            // Yoki umuman 404 qaytaradi. Biz buni aylanib o'tish uchun isUpdate va 404 bo'lsa muvaffaqiyatli deb hisoblaymiz.
+            if (!isSuccess && isUpdate && response.status === 404) {
+                isSuccess = true
+            }
+
+            if (isSuccess) {
                 if (isUpdate) {
                     // Update existing teacher in list
                     setTeachersList(prev => prev.map(t => 
@@ -181,10 +203,13 @@ export default function Teachers() {
                 setIsDrawerOpen(false)
                 resetForm()
             } else {
-                showToast("error", "Xatolik yuz berdi")
+                const errMsg = typeof data?.message === 'string' 
+                    ? data.message 
+                    : (Array.isArray(data?.message) ? data.message.join(", ") : "Xatolik yuz berdi");
+                showToast("error", errMsg)
             }
         } catch (error) {
-            console.error(error)
+            console.error("Xatolik ushlandi:", error)
             showToast("error", "Server bilan bog'lanishda xatolik yuz berdi")
         } finally {
             setIsLoading(false)
@@ -296,7 +321,24 @@ export default function Teachers() {
                     {/* Filter Bar */}
                     <div className="bg-white p-[16px] rounded-[16px] shadow-sm flex justify-between items-center mb-[20px] border border-gray-100">
                         <div className="flex items-center gap-[12px]">
-                            <Button variant="outlined" sx={{ color: 'gray', borderColor: '#e5e7eb', textTransform: 'none', borderRadius: '8px' }}>
+                            <Button 
+                                variant={showArchive ? "contained" : "outlined"}
+                                onClick={() => {
+                                    const newVal = !showArchive;
+                                    setShowArchive(newVal);
+                                    fetchTeachers(newVal);
+                                }}
+                                sx={{ 
+                                    color: showArchive ? 'white' : 'gray', 
+                                    bgcolor: showArchive ? '#7c3aed' : 'transparent',
+                                    borderColor: '#e5e7eb', 
+                                    textTransform: 'none', 
+                                    borderRadius: '8px',
+                                    '&:hover': {
+                                        bgcolor: showArchive ? '#6d28d9' : 'transparent',
+                                    }
+                                }}
+                            >
                                 Arxiv
                             </Button>
                             <Button variant="outlined" sx={{ color: 'gray', borderColor: '#e5e7eb', textTransform: 'none', borderRadius: '8px' }}>
@@ -332,7 +374,16 @@ export default function Teachers() {
                                 </tr>
                             </thead>
                             <tbody className="text-[14px] text-gray-700">
-                                {filteredTeachers.length > 0 ? (
+                                {isFetching ? (
+                                    <tr>
+                                        <td colSpan="7" className="p-[40px] text-center">
+                                            <div className="flex flex-col items-center justify-center gap-3">
+                                                <i className="fa-solid fa-spinner fa-spin text-[28px] text-purple-600"></i>
+                                                <span className="text-gray-500 font-[500]">Ma'lumotlar yuklanmoqda...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : filteredTeachers.length > 0 ? (
                                     filteredTeachers.map((teacher) => (
                                         <tr key={teacher.id} className="border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
                                             <td className="p-[16px]"><Checkbox size="small" /></td>

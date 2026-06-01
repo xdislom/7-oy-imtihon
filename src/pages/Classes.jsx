@@ -185,12 +185,18 @@ export default function Groups() {
     const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false)
     const [isRoomModalOpen, setIsRoomModalOpen] = useState(false)
     const [groups, setGroups] = useState([])
+    const [showGroupArchive, setShowGroupArchive] = useState(false)
+    const [archivedGroups, setArchivedGroups] = useState([])
     const [rooms, setRooms] = useState([])
     const [courses, setCourses] = useState([])
+    const [showCourseArchive, setShowCourseArchive] = useState(false)
+    const [archivedCourses, setArchivedCourses] = useState([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [coursesLoading, setCoursesLoading] = useState(false)
     const [courseError, setCourseError] = useState("")
+    const [archivedCoursesLoading, setArchivedCoursesLoading] = useState(false)
+    const [archivedCourseError, setArchivedCourseError] = useState("")
     const [roomsLoading, setRoomsLoading] = useState(false)
     const [roomError, setRoomError] = useState("")
     const [roomSaving, setRoomSaving] = useState(false)
@@ -276,6 +282,39 @@ export default function Groups() {
         }
     }
 
+    const fetchArchivedGroups = async () => {
+        setLoading(true)
+        setError("")
+        const token = localStorage.getItem("token")
+
+        if (!token || token === "undefined" || token === "null") {
+            setLoading(false)
+            setError("Avval tizimga kiring")
+            return
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/groups/archive", {
+                headers: {
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                }
+            })
+
+            const data = await response.json()
+            if (!response.ok) {
+                throw new Error(data.message || "Arxiv guruhlarni olishda xatolik yuz berdi")
+            }
+
+            const list = findGroupsArray(data)
+            setArchivedGroups(list.map(normalizeGroup))
+        } catch (error) {
+            console.error("Error fetching archived groups:", error)
+            setError(error.message || "Arxiv guruhlarni yuklashda xatolik!")
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const fetchRooms = async () => {
         setRoomsLoading(true)
         setRoomError("")
@@ -348,6 +387,47 @@ export default function Groups() {
             setCourseError(error.message || "Kurslarni yuklashda xatolik!")
         } finally {
             setCoursesLoading(false)
+        }
+    }
+
+    const fetchArchivedCourses = async () => {
+        setArchivedCoursesLoading(true)
+        setArchivedCourseError("")
+        const token = localStorage.getItem("token")
+
+        if (!token || token === "undefined" || token === "null") {
+            setArchivedCoursesLoading(false)
+            setArchivedCourseError("Avval tizimga kiring")
+            return
+        }
+
+        try {
+            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/courses/archive", {
+                headers: {
+                    "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
+                }
+            })
+
+            const data = await response.json()
+            console.log("RAW ARCHIVED COURSES API RESPONSE:", data)
+
+            if (!response.ok) {
+                throw new Error(data.message || "Arxiv kurslarni olishda xatolik yuz berdi")
+            }
+
+            const list = findCoursesArray(data)
+            console.log("EXTRACTED ARCHIVED COURSES ARRAY:", list)
+
+            if (list.length === 0) {
+                setArchivedCourseError("Arxivdagi kurslar topilmadi")
+            }
+
+            setArchivedCourses(list.map(normalizeCourse))
+        } catch (error) {
+            console.error("Error fetching archived courses:", error)
+            setArchivedCourseError(error.message || "Arxiv kurslarni yuklashda xatolik!")
+        } finally {
+            setArchivedCoursesLoading(false)
         }
     }
 
@@ -484,9 +564,18 @@ export default function Groups() {
     }
 
     const handleSaveGroup = async () => {
-        if (!groupName.trim() || !selectedCourseId || !selectedRoomId || groupDays.length === 0 || !groupStartTime || !groupStartDate) {
-            setGroupError("Barcha majburiy maydonlarni to'ldiring")
-            return
+        const isUpdate = !!editingGroup
+        
+        if (!isUpdate) {
+            if (!groupName.trim() || !selectedCourseId || !selectedRoomId || groupDays.length === 0 || !groupStartTime || !groupStartDate) {
+                setGroupError("Barcha majburiy maydonlarni to'ldiring")
+                return
+            }
+        } else {
+            if (!groupName.trim()) {
+                setGroupError("Guruh nomi majburiy")
+                return
+            }
         }
 
         setGroupSaving(true)
@@ -504,16 +593,17 @@ export default function Groups() {
                 "Yakshanba": "SUNDAY"
             };
 
-            const payload = {
-                name: groupName.trim(),
-                course_id: Number(selectedCourseId),
-                room_id: Number(selectedRoomId),
-                week_day: groupDays.map(d => dayMap[d] || d),
-                start_time: groupStartTime,
-                start_date: groupStartDate,
-                description: groupDesc.trim(),
-                max_student: Number(rooms.find(r => String(r.id) === String(selectedRoomId))?.capacity || 20)
+            const payload = {}
+            if (groupName.trim()) payload.name = groupName.trim()
+            if (selectedCourseId) payload.course_id = Number(selectedCourseId)
+            if (selectedRoomId) {
+                payload.room_id = Number(selectedRoomId)
+                payload.max_student = Number(rooms.find(r => String(r.id) === String(selectedRoomId))?.capacity || 20)
             }
+            if (groupDays.length > 0) payload.week_day = groupDays.map(d => dayMap[d] || d)
+            if (groupStartTime && groupStartTime !== "Noma'lum") payload.start_time = groupStartTime
+            if (groupStartDate && groupStartDate !== "Noma'lum") payload.start_date = groupStartDate
+            if (groupDesc.trim()) payload.description = groupDesc.trim()
 
             if (selectedTeacher) {
                 payload.teachers = [Number(selectedTeacher)]
@@ -523,7 +613,6 @@ export default function Groups() {
                 payload.students = selectedStudents.map(Number)
             }
 
-            const isUpdate = !!editingGroup
             const method = isUpdate ? "PATCH" : "POST"
             const url = isUpdate
                 ? `https://najot-edu.softwareengineer.uz/api/v1/groups/${editingGroup.id}`
@@ -660,13 +749,18 @@ export default function Groups() {
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchGroups()
-            fetchCourses()
             fetchRooms()
             fetchTeachers()
             fetchStudents()
         }, 0)
         return () => clearTimeout(timer)
     }, [])
+
+    useEffect(() => {
+        if (activeTab === "Arxiv") {
+            fetchArchivedGroups()
+        }
+    }, [activeTab])
 
     const totalTeachers = new Set(groups.map(group => group.teacher).filter(teacher => teacher && teacher !== "Noma'lum")).size
     const totalStudents = groups.reduce((sum, group) => sum + group.students, 0)
@@ -697,22 +791,6 @@ export default function Groups() {
                                 + Guruh qo'shish
                             </Button>
                         )}
-                        {activeTab === "Kurslar" && (
-                            <Button 
-                                variant="contained" 
-                                onClick={() => setIsCourseModalOpen(true)}
-                                sx={{ 
-                                    bgcolor: '#7c3aed', 
-                                    textTransform: 'none', 
-                                    borderRadius: '10px', 
-                                    fontWeight: 600,
-                                    px: 3,
-                                    '&:hover': { bgcolor: '#6d28d9' }
-                                }}
-                            >
-                                + Kurs qo'shish
-                            </Button>
-                        )}
                     </div>
 
                     {/* Tabs */}
@@ -722,12 +800,6 @@ export default function Groups() {
                             className={`px-[16px] py-[6px] rounded-[8px] text-[14px] font-[600] transition-colors ${activeTab === "Guruhlar" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"}`}
                         >
                             Guruhlar
-                        </button>
-                        <button 
-                            onClick={() => setActiveTab("Kurslar")}
-                            className={`px-[16px] py-[6px] rounded-[8px] text-[14px] font-[600] transition-colors ${activeTab === "Kurslar" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500"}`}
-                        >
-                            Kurslar
                         </button>
                         <button 
                             onClick={() => setActiveTab("Arxiv")}
@@ -893,67 +965,102 @@ export default function Groups() {
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                    )}
-
-                    {activeTab === "Kurslar" && (
-                        <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead className="bg-gray-50/50">
-                                        <tr className="text-gray-400 text-[12px] font-[600] uppercase tracking-wider">
-                                            <th className="py-[16px] px-[24px]">#</th>
-                                            <th className="py-[16px] px-[24px]">Kurs nomi</th>
-                                            <th className="py-[16px] px-[24px]">Davomiyligi</th>
-                                            <th className="py-[16px] px-[24px]">Narxi</th>
-                                            <th className="py-[16px] px-[24px] text-right">
-                                                <button onClick={fetchCourses} className="text-gray-400 hover:text-purple-600" disabled={coursesLoading}>
-                                                    <i className={`fa-solid fa-rotate-right cursor-pointer ${coursesLoading ? 'animate-spin' : ''}`}></i>
-                                                </button>
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="text-[14px]">
-                                        {coursesLoading && (
-                                            <tr>
-                                                <td colSpan="5" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
-                                                    Kurslar yuklanmoqda...
-                                                </td>
-                                            </tr>
-                                        )}
-
-                                        {!coursesLoading && courseError && (
-                                            <tr>
-                                                <td colSpan="5" className="py-[28px] px-[24px] text-center text-red-500 font-[600]">
-                                                    {courseError}
-                                                </td>
-                                            </tr>
-                                        )}
-
-                                        {!coursesLoading && !courseError && courses.length === 0 && (
-                                            <tr>
-                                                <td colSpan="5" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
-                                                    Kurslar topilmadi
-                                                </td>
-                                            </tr>
-                                        )}
-
-                                        {!coursesLoading && !courseError && courses.map((course, index) => (
-                                            <tr key={course.id} className="border-t border-gray-50 hover:bg-gray-50/60 transition-colors">
-                                                <td className="py-[16px] px-[24px] font-[600] text-gray-500">{index + 1}</td>
-                                                <td className="py-[16px] px-[24px] font-[700] text-gray-800">{course.name}</td>
-                                                <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{course.durationMonth ? `${course.durationMonth} oy` : "-"}</td>
-                                                <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{course.price ? `${course.price.toLocaleString()} so'm` : "-"}</td>
-                                                <td className="py-[16px] px-[24px] text-right">
-                                                    <i className="fa-solid fa-ellipsis-vertical text-gray-300 cursor-pointer hover:text-gray-600"></i>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
+                    )}
+
+                    {activeTab === "Arxiv" && (
+                        <>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold">Arxiv guruhlar
+                                <button onClick={fetchArchivedGroups} className="ml-2 text-gray-400 hover:text-purple-600" disabled={loading}>
+                                    <i className={`fa-solid fa-rotate-right cursor-pointer ${loading ? 'animate-spin' : ''}`}></i>
+                                </button>
+                            </h3>
+                            <button
+                                className="flex items-center gap-2 px-4 py-2 rounded-[8px] border border-gray-200 text-gray-700 font-[600] bg-white hover:bg-gray-50 transition-colors"
+                                onClick={() => setActiveTab("Guruhlar")}
+                            >
+                                <i className="fa-solid fa-users"></i> Guruhlar
+                            </button>
+                        </div>
+                        <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-gray-50/50">
+                                    <tr className="text-gray-400 text-[12px] font-[600] uppercase tracking-wider">
+                                        <th className="py-[16px] px-[24px]">Status</th>
+                                        <th className="py-[16px] px-[24px]">Guruh nomi</th>
+                                        <th className="py-[16px] px-[24px]">Kurs</th>
+                                        <th className="py-[16px] px-[24px]">Davomiyligi</th>
+                                        <th className="py-[16px] px-[24px]">Dars vaqti</th>
+                                        <th className="py-[16px] px-[24px]">Xona</th>
+                                        <th className="py-[16px] px-[24px]">O'qituvchi</th>
+                                        <th className="py-[16px] px-[24px] text-center">Talabalar</th>
+                                        <th className="py-[16px] px-[24px] text-right">
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-[14px]">
+                                    {loading && (
+                                        <tr>
+                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
+                                                Arxiv guruhlar yuklanmoqda...
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {!loading && error && (
+                                        <tr>
+                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-red-500 font-[600]">
+                                                {error}
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {!loading && !error && archivedGroups.length === 0 && (
+                                        <tr>
+                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
+                                                Arxiv guruhlar topilmadi
+                                            </td>
+                                        </tr>
+                                    )}
+
+                                    {!loading && !error && archivedGroups.map((group) => (
+                                        <tr
+                                            key={group.id}
+                                            className="border-t border-gray-50 transition-colors"
+                                        >
+                                            <td className="py-[16px] px-[24px]">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[11px] font-[700] text-gray-400">ARXIV</span>
+                                                </div>
+                                            </td>
+                                            <td className="py-[16px] px-[24px] font-[700] text-gray-800">{group.name}</td>
+                                            <td className="py-[16px] px-[24px]">
+                                                <span className="px-[12px] py-[4px] bg-purple-50 text-purple-600 rounded-full text-[11px] font-[600]">
+                                                    {group.course}
+                                                </span>
+                                            </td>
+                                            <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{group.duration}</td>
+                                            <td className="py-[16px] px-[24px]">
+                                                <div className="flex flex-col">
+                                                    <span className="font-[700] text-gray-800">{group.time}</span>
+                                                    <span className="text-[11px] text-gray-400 font-[500]">{group.days}</span>
+                                                </div>
+                                            </td>
+                                            <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{group.room}</td>
+                                            <td className="py-[16px] px-[24px] text-gray-600 font-[500]">{group.teacher}</td>
+                                            <td className="py-[16px] px-[24px] text-center font-[700] text-gray-800">{group.students}</td>
+                                            <td className="py-[16px] px-[24px] text-right">
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            </div>
+                        </div>
+                        </>
                     )}
                 </div>
             </div>

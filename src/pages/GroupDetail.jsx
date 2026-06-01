@@ -6,6 +6,87 @@ import Header from "../components/Header"
 
 const API_URL = "https://najot-edu.softwareengineer.uz/api/v1"
 
+// Video player: CORS muammosini aylanib o'tish uchun to'g'ridan-to'g'ri video tag ishlatiladi
+function VideoPlayer({ url, token, fileId, rawVideoUrl }) {
+    const [urlsToTry, setUrlsToTry] = useState([])
+    const [currentIndex, setCurrentIndex] = useState(0)
+    const [error, setError] = useState("")
+
+    useEffect(() => {
+        let tryUrls = []
+        if (url && url.startsWith("http")) tryUrls.push(url)
+        
+        let fileName = "";
+        if (rawVideoUrl) {
+            fileName = rawVideoUrl.split("/").pop();
+            const d = "https://najot-edu.softwareengineer.uz";
+            
+            tryUrls.push(`${d}/uploads/${fileName}`);
+            tryUrls.push(`${d}/public/uploads/${fileName}`);
+            tryUrls.push(`${d}/api/v1/uploads/${fileName}`);
+            tryUrls.push(`${d}/files/${fileName}`);
+            tryUrls.push(`${d}/api/v1/files/${fileName}`);
+            tryUrls.push(`${d}/assets/${fileName}`);
+        }
+
+        if (fileId) {
+            // Agar API ochiq bo'lsa bular ishlashi mumkin
+            tryUrls.push(`${API_URL}/files/stream/${fileId}`)
+            tryUrls.push(`${API_URL}/files/${fileId}/stream`)
+            tryUrls.push(`${API_URL}/files/download/${fileId}`)
+            tryUrls.push(`${API_URL}/files/${fileId}`)
+        }
+
+        const uniqueUrls = [...new Set(tryUrls)]
+        setUrlsToTry(uniqueUrls)
+        setCurrentIndex(0)
+        setError("")
+    }, [url, fileId, rawVideoUrl])
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center gap-[16px] text-center w-full h-full px-[24px]">
+                <i className="fa-regular fa-circle-play text-white text-[64px] opacity-30"></i>
+                <p className="text-red-400 text-[14px] font-[500]">{error}</p>
+            </div>
+        )
+    }
+
+    if (urlsToTry.length === 0) return null;
+
+    const currentUrl = urlsToTry[currentIndex];
+
+    return (
+        <div className="w-full h-full relative group">
+            <video
+                key={currentUrl} // force reload when URL changes
+                src={currentUrl}
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                    console.error("Video yuklanmadi:", currentUrl);
+                    if (currentIndex < urlsToTry.length - 1) {
+                        setCurrentIndex(prev => prev + 1);
+                    } else {
+                        setError("Video topilmadi yoki serverdan kelmayapti.");
+                    }
+                }}
+            >
+                Your browser does not support the video tag.
+            </video>
+            
+            {/* Faqat qidirish jarayonida manzilni ko'rsatamiz */}
+            {currentIndex < urlsToTry.length - 1 && (
+                <div className="absolute top-2 left-2 bg-black/70 text-white text-[10px] px-2 py-1 rounded">
+                    Qidirilmoqda ({currentIndex + 1}/{urlsToTry.length}): {currentUrl}
+                </div>
+            )}
+        </div>
+    )
+}
+
+
 const findObject = (value) => {
     if (!value || typeof value !== 'object') return {}
     if (value.data && typeof value.data === 'object' && !Array.isArray(value.data)) return value.data
@@ -255,9 +336,14 @@ const getScheduleMonths = (schedules, group) => {
         return acc
     }, {})
 
-    return Object.keys(grouped).map((key, index) => ({
+    const today = new Date()
+    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+    const keys = Object.keys(grouped)
+    const hasCurrentMonth = keys.includes(currentMonthKey)
+
+    return keys.map((key, index) => ({
         label: `${index + 1}-o'quv oyi`,
-        isCurrent: index === 0,
+        isCurrent: hasCurrentMonth ? key === currentMonthKey : index === 0,
         dates: grouped[key]
     }))
 }
@@ -338,7 +424,9 @@ export default function GroupDetail() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [isParamsOpen, setIsParamsOpen] = useState(true)
+    const [isMentorsOpen, setIsMentorsOpen] = useState(true)
     const [showAllDates, setShowAllDates] = useState(false)
+    const [currentMonthIndex, setCurrentMonthIndex] = useState(0)
     const [activeTab, setActiveTab] = useState("info")
     const [activeLessonsTab, setActiveLessonsTab] = useState("homework")
     const [isMentorsModalOpen, setIsMentorsModalOpen] = useState(false)
@@ -347,6 +435,7 @@ export default function GroupDetail() {
     const [mavzu, setMavzu] = useState("")
     const [tavsif, setTavsif] = useState("")
     const [groupStudents, setGroupStudents] = useState([])
+    const [groupStudentsCount, setGroupStudentsCount] = useState(0)
     const [taughtDates, setTaughtDates] = useState(() => JSON.parse(localStorage.getItem(`taughtDates_${groupId}`) || '{}'))
     const [studentsLoading, setStudentsLoading] = useState(false)
     const [attendance, setAttendance] = useState({})
@@ -359,6 +448,8 @@ export default function GroupDetail() {
     const [isVideoModalOpen, setIsVideoModalOpen] = useState(false)
     const [videoFile, setVideoFile] = useState(null)
     const [videoDragOver, setVideoDragOver] = useState(false)
+    const [selectedVideoLessonId, setSelectedVideoLessonId] = useState("")
+    const [videoNameInput, setVideoNameInput] = useState("")
     const [generalLessons, setGeneralLessons] = useState([])
     const [isUploading, setIsUploading] = useState(false)
     const [selectedVideoPlayer, setSelectedVideoPlayer] = useState(null)
@@ -379,32 +470,44 @@ export default function GroupDetail() {
         localStorage.setItem(`attendance_${groupId}`, JSON.stringify(saved))
     }
 
-    const handleVideoUpload = () => {
+    const handleVideoUpload = async () => {
         if (!videoFile) return;
+        if (!selectedVideoLessonId) {
+            alert("Iltimos, video qaysi darsga tegishli ekanligini tanlang!");
+            return;
+        }
+
         setIsUploading(true);
-        setTimeout(() => {
-            const newVideo = {
-                id: Date.now(),
-                name: videoFile.name,
-                file_size: videoFile.size,
-                created_at: new Date().toISOString(),
-                lesson_name: "Yangi yuklangan video",
-                url: URL.createObjectURL(videoFile),
-                isMock: true
-            };
-            
-            const updatedMockVideos = [newVideo, ...mockVideos];
-            setMockVideos(updatedMockVideos);
-            // Save without URL to localStorage because Object URLs don't persist
-            const videosToSave = updatedMockVideos.map(v => ({...v, url: null}));
-            localStorage.setItem(`mockVideos_${groupId}`, JSON.stringify(videosToSave));
-            
-            setVideos([newVideo, ...videos]);
-            setVideosError(""); // Clear any fetch errors to show the table
-            setIsVideoModalOpen(false);
-            setVideoFile(null);
+        try {
+            const formData = new FormData();
+            formData.append("file", videoFile);
+            // formData.append("name", videoNameInput); // Agar API da video nomi ham kerak bo'lsa
+
+            const tok = (token || '').replace(/^Bearer\s+/i, '').trim();
+            const response = await fetch(`${API_URL}/files/group/${groupId}/upload?lessonId=${selectedVideoLessonId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${tok}`
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                await fetchVideos(); // Videolarni qayta yuklash
+                setIsVideoModalOpen(false);
+                setVideoFile(null);
+                setSelectedVideoLessonId("");
+                setVideoNameInput("");
+            } else {
+                const errData = await response.json().catch(() => ({}));
+                alert(errData.message || "Video yuklashda xatolik yuz berdi");
+            }
+        } catch (error) {
+            console.error("Video upload error:", error);
+            alert("Server bilan aloqada xatolik yuz berdi!");
+        } finally {
             setIsUploading(false);
-        }, 1000);
+        }
     }
 
     const handleDeleteVideo = (fileId) => {
@@ -441,20 +544,32 @@ export default function GroupDetail() {
                 'Content-Type': 'application/json'
             }
 
-            // API ga har bir talaba uchun davomat yuborish
-            const promises = groupStudents.map(student =>
-                fetch(`${API_URL}/attendance`, {
+            // API ga dars va yo'qlamani bitta qilib yuborish
+            const attendancesList = groupStudents.map(student => ({
+                student_id: student.id,
+                isPresent: attendance[student.id] ? "true" : "false"
+            }));
+
+            try {
+                const saveRes = await fetch(`${API_URL}/attendance`, {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
-                        student_id: student.id,
                         group_id: Number(groupId) || groupId,
-                        date: selectedDate,
-                        is_present: !!attendance[student.id]
+                        topic: mavzu.trim(),
+                        lesson_date: selectedDate,
+                        description: tavsif.trim(),
+                        attendances: attendancesList
                     })
-                }).catch(err => console.warn('Attendance post error for student', student.id, err))
-            )
-            await Promise.allSettled(promises)
+                });
+                
+                if (!saveRes.ok) {
+                    console.warn("Dars va yo'qlama saqlashda xatolik:", await saveRes.text());
+                }
+            } catch (err) {
+                console.error("Attendance save error:", err);
+                throw err;
+            }
 
             const newTaughtDates = { ...taughtDates, [selectedDate]: true };
             setTaughtDates(newTaughtDates);
@@ -462,6 +577,7 @@ export default function GroupDetail() {
             saveAttendanceForDate(selectedDate, attendance)
             setAttendanceMessage("Yo'qlama saqlandi")
             setAttendanceError(false)
+            fetchGeneralLessons() // Darslar ro'yxatini yangilash
         } catch (err) {
             console.error('Attendance save error:', err)
             setAttendanceMessage("Yo'qlama saqlanmadi")
@@ -564,6 +680,13 @@ export default function GroupDetail() {
                     }
                 })
                 setAttendance({ ...init })
+                
+                // Agar bazada bu kun uchun yo'qlama bo'lsa, uni avtomat "Dars o'tilgan" (qulflangan) deb belgilaymiz!
+                setTaughtDates(prev => {
+                    const updated = { ...prev, [date]: true }
+                    localStorage.setItem(`taughtDates_${groupId}`, JSON.stringify(updated))
+                    return updated
+                })
             } else {
                 // Bu sana uchun API da ma'lumot yo'q – localStorage fallback
                 const saved = getSavedAttendance(date)
@@ -584,14 +707,13 @@ export default function GroupDetail() {
         try {
             // Avval guruh talabalarini to'g'ridan olishga urinib ko'ramiz
             const headers = { "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}` }
-            const res = await fetch(`${API_URL}/students?group_id=${groupId}`, { headers })
+            const res = await fetch(`${API_URL}/groups/one/students/${groupId}`, { headers })
             if (res.ok) {
                 const data = await res.json()
                 const list = findArray(data)
-                const filtered = list.filter(s => {
-                    if (!Array.isArray(s.groups)) return true
-                    return s.groups.some(g => String(g.id || g) === String(groupId))
-                })
+                // Filterlash kerak emas, endpoint o'zi shu guruhnikini qaytaradi deb hisoblaymiz
+                // Yoki baribir filter qoldirish zarar qilmaydi, lekin list yetarli
+                const filtered = list;
                 const normalized = (filtered.length > 0 ? filtered : list).map((s, idx) => ({
                     id: s.id || s._id || idx + 1,
                     name: s.full_name || s.name || "Noma'lum",
@@ -669,24 +791,40 @@ export default function GroupDetail() {
         }
         setHomeworkLoading(true)
         try {
-            const res = await fetch(`${API_URL}/homework/all?group_id=${groupId}`, { headers })
+            const res = await fetch(`${API_URL}/homework/all`, { headers })
             if (res.ok) {
                 const data = await res.json()
-                const list = findArray(data)
-                if (list.length > 0) {
-                    setLessons(list)
-                } else {
-                    setLessons(mockLessons)
-                }
+                const allList = findArray(data)
+                const filtered = allList.filter(hw => {
+                    const hwGroupId = hw.group_id || hw.groupId || hw.group?.id
+                    return String(hwGroupId) === String(groupId)
+                })
+                console.log("✅ Homework/all:", allList.length, "ta, bu guruh uchun:", filtered.length, "ta")
+                if (filtered.length > 0) console.log("📦 Birinchi homework fieldi:", JSON.stringify(filtered[0]))
+                setLessons(filtered)
             } else if (res.status === 401) {
                 localStorage.removeItem("token")
                 navigate("/")
             } else {
-                setLessons(mockLessons)
+                console.error("Homework fetch failed with status:", res.status)
+                setLessons([])
+            }
+
+            // O'quvchilar sonini /groups/one/students/:groupId dan olamiz (yangi API)
+            try {
+                const studRes = await fetch(`${API_URL}/groups/one/students/${groupId}`, { headers })
+                if (studRes.ok) {
+                    const studData = await studRes.json()
+                    const studList = findArray(studData)
+                    console.log("👥 Haqiqiy o'quvchilar soni (yangi API):", studList.length)
+                    setGroupStudentsCount(studList.length)
+                }
+            } catch (e) {
+                console.error("Students count fetch error:", e)
             }
         } catch (err) {
-            console.error("Homework fetch error:", err)
-            setLessons(mockLessons)
+            console.error("Homework fetch network error:", err)
+            setLessons([])
         } finally {
             setHomeworkLoading(false)
         }
@@ -697,11 +835,15 @@ export default function GroupDetail() {
         if (!tok) return
         try {
             const headers = { "Authorization": `Bearer ${tok}` }
-            const res = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/lessons`, { headers })
+            const res = await fetch(`${API_URL}/lessons/my/group/${groupId}`, { headers })
             if (res.ok) {
                 const data = await res.json()
-                const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : [])
+                console.log("Darslar API javobi:", data);
+                const list = findArray(data)
+                console.log("Topilgan darslar ro'yxati:", list);
                 setGeneralLessons(list)
+            } else {
+                console.error("Darslarni olishda xatolik:", res.status, await res.text());
             }
         } catch (err) {
             console.error("General lessons fetch error:", err)
@@ -716,7 +858,7 @@ export default function GroupDetail() {
         try {
             const headers = { "Authorization": `Bearer ${tok}` }
             // Try primary endpoint
-            let res = await fetch(`${API_URL}/files?group_id=${groupId}`, { headers })
+            let res = await fetch(`${API_URL}/files/${groupId}`, { headers })
             if (!res.ok && res.status !== 401) {
                 // Fallback endpoint
                 res = await fetch(`${API_URL}/files/all?group_id=${groupId}`, { headers })
@@ -750,7 +892,7 @@ export default function GroupDetail() {
                 setVideos(savedMocks);
                 setVideosError("");
             } else {
-                setVideosError("Server bilan bog'lanishda xatolik!")
+                setVideosError("Server xatoligi");
             }
         } finally {
             setVideosLoading(false)
@@ -760,8 +902,23 @@ export default function GroupDetail() {
     useEffect(() => {
         if (selectedDate) {
             fetchGroupStudents()
+            
+            // Dars uchun mavzu va tavsifni avtomatik to'ldirish
+            const allPossibleLessons = [...(generalLessons || []), ...(lessons || []), ...(schedules || [])];
+            const existingLesson = allPossibleLessons.find(l => {
+                const lDate = (l.date || l.lesson_date || l.created_at || '').slice(0, 10);
+                return lDate === selectedDate;
+            });
+            
+            if (existingLesson) {
+                setMavzu(existingLesson.name || existingLesson.title || existingLesson.mavzu || existingLesson.topic || existingLesson.lesson_name || "");
+                setTavsif(existingLesson.description || existingLesson.tavsif || "");
+            } else {
+                setMavzu("");
+                setTavsif("");
+            }
         }
-    }, [selectedDate])
+    }, [selectedDate, generalLessons, lessons, schedules])
 
     useEffect(() => {
         if (isVideoModalOpen && generalLessons.length === 0) {
@@ -818,8 +975,15 @@ export default function GroupDetail() {
         return mockTeachers.slice(0, 4)
     }, [group])
 
-    const scheduleDates = useMemo(() => getScheduleDates(schedules, group), [schedules, group])
     const scheduleMonths = useMemo(() => getScheduleMonths(schedules, group), [schedules, group])
+
+    useEffect(() => {
+        if (scheduleMonths.length > 0) {
+            const idx = scheduleMonths.findIndex(m => m.isCurrent);
+            setCurrentMonthIndex(idx !== -1 ? idx : 0);
+        }
+    }, [scheduleMonths])
+
     console.log(group)
     return (
         <div className="w-full bg-gray-50 min-h-screen">
@@ -890,31 +1054,38 @@ export default function GroupDetail() {
 
                     {!loading && !error && activeTab === "info" && (
                         <>
-                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-[0px] items-start mb-[32px]">
-                                <div className="bg-white border border-gray-200 xl:rounded-l-[10px] overflow-hidden transition-colors">
-                                    <div className="w-full bg-blue-500 text-white px-[22px] py-[16px] flex items-center text-left">
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-[0px] items-stretch mb-[32px]">
+                                <div className={`${isMentorsOpen ? 'bg-white' : 'bg-gray-100'} border border-gray-200 xl:rounded-l-[10px] overflow-hidden transition-colors h-full`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsMentorsOpen(!isMentorsOpen)}
+                                        className="w-full bg-blue-500 text-white px-[22px] py-[16px] flex items-center justify-between text-left"
+                                    >
                                         <h3 className="text-[18px] font-[800]">Guruh mentorlari</h3>
-                                    </div>
-                                    <div className="p-[28px]">
-                                        <div className="grid gap-[18px] md:grid-cols-2">
-                                            {mentors.map((teacher, index) => (
-                                                <div key={index} className="flex flex-col items-center gap-[6px] p-[14px] rounded-[18px] border border-gray-100 shadow-sm bg-white text-center">
-                                                    <div className="w-[64px] h-[64px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-[700] text-[24px] overflow-hidden">
-                                                        {teacher?.avatar ? (
-                                                            <img src={teacher.avatar} alt={teacher.name} className="w-full h-full object-cover" />
-                                                        ) : (
-                                                            <span>{(teacher.name || teacher.full_name || 'T')[0]}</span>
-                                                        )}
+                                        <i className={`fa-solid fa-chevron-${isMentorsOpen ? 'up' : 'down'}`}></i>
+                                    </button>
+                                    {isMentorsOpen && (
+                                        <div className="p-[28px]">
+                                            <div className="grid gap-[18px] md:grid-cols-2">
+                                                {mentors.map((teacher, index) => (
+                                                    <div key={index} className="flex flex-col items-center gap-[6px] p-[14px] rounded-[18px] border border-gray-100 shadow-sm bg-white text-center">
+                                                        <div className="w-[64px] h-[64px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-[700] text-[24px] overflow-hidden">
+                                                            {teacher?.avatar ? (
+                                                                <img src={teacher.avatar} alt={teacher.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <span>{(teacher.name || teacher.full_name || 'T')[0]}</span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-[10px] font-[700] text-[#00b87c] uppercase tracking-[0.08em]">Teacher</p>
+                                                        <p className="text-[14px] font-[800] text-gray-900 truncate">{teacher.name || teacher.full_name}</p>
                                                     </div>
-                                                    <p className="text-[10px] font-[700] text-[#00b87c] uppercase tracking-[0.08em]">Teacher</p>
-                                                    <p className="text-[14px] font-[800] text-gray-900 truncate">{teacher.name || teacher.full_name}</p>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
 
-                                <div className={`${isParamsOpen ? 'bg-white' : 'bg-gray-100'} border border-gray-200 xl:rounded-r-[10px] overflow-hidden transition-colors`}>
+                                <div className={`${isParamsOpen ? 'bg-white' : 'bg-gray-100'} border border-gray-200 xl:rounded-r-[10px] overflow-hidden transition-colors h-full`}>
                                     <button
                                         type="button"
                                         onClick={() => setIsParamsOpen(!isParamsOpen)}
@@ -972,11 +1143,17 @@ export default function GroupDetail() {
                                         )}
 
                                         <div className="mt-[44px] flex items-center gap-[16px]">
-                                            <button className="w-[38px] h-[38px] rounded-full border border-gray-100 text-gray-300 flex items-center justify-center bg-white">
+                                            <button 
+                                                onClick={() => setCurrentMonthIndex(prev => Math.max(0, prev - 1))}
+                                                disabled={currentMonthIndex === 0}
+                                                className={`w-[38px] h-[38px] rounded-full border border-gray-100 flex items-center justify-center bg-white ${currentMonthIndex === 0 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:bg-gray-50'}`}>
                                                 <i className="fa-solid fa-chevron-left"></i>
                                             </button>
-                                            <span className="text-gray-900 font-[800] text-[16px]">1-o'quv oyi</span>
-                                            <button className="w-[38px] h-[38px] rounded-full border border-gray-100 text-gray-400 flex items-center justify-center bg-white">
+                                            <span className="text-gray-900 font-[800] text-[16px]">{scheduleMonths[currentMonthIndex]?.label || "1-o'quv oyi"}</span>
+                                            <button 
+                                                onClick={() => setCurrentMonthIndex(prev => Math.min(scheduleMonths.length - 1, prev + 1))}
+                                                disabled={scheduleMonths.length === 0 || currentMonthIndex === scheduleMonths.length - 1}
+                                                className={`w-[38px] h-[38px] rounded-full border border-gray-100 flex items-center justify-center bg-white ${scheduleMonths.length === 0 || currentMonthIndex === scheduleMonths.length - 1 ? 'text-gray-200 cursor-not-allowed' : 'text-gray-400 hover:bg-gray-50'}`}>
                                                 <i className="fa-solid fa-chevron-right"></i>
                                             </button>
                                         </div>
@@ -984,7 +1161,7 @@ export default function GroupDetail() {
                                         {!showAllDates ? (
                                             <>
                                                 <div className="mt-[26px] flex flex-wrap gap-[10px]">
-                                                    {scheduleDates.map((scheduleDate, index) => (
+                                                    {(scheduleMonths[currentMonthIndex]?.dates.slice(0, 13) || []).map((scheduleDate, index) => (
                                                         <DateChip
                                                             key={`${scheduleDate}-${index}`}
                                                             scheduleDate={scheduleDate}
@@ -1121,7 +1298,12 @@ export default function GroupDetail() {
                                                                                             <div className="flex items-center gap-[10px]">
                                                                                                 <div className="w-[32px] h-[32px] rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-[700] text-[13px] flex-shrink-0 overflow-hidden">
                                                                                                     {student.avatar
-                                                                                                        ? <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+                                                                                                        ? <img
+                                                                                                            src={student.avatar}
+                                                                                                            alt={student.name}
+                                                                                                            className="w-full h-full object-cover"
+                                                                                                            onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerHTML = student.initial }}
+                                                                                                          />
                                                                                                         : student.initial
                                                                                                     }
                                                                                                 </div>
@@ -1346,22 +1528,22 @@ export default function GroupDetail() {
                                                                     {index + 1}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.title || lesson.name || lesson.subject || lesson.lesson_name || lesson.lessonName || "—"}
+                                                                    {lesson.title || lesson.topic || lesson.name || lesson.subject || lesson.description || "—"}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.submitted ?? lesson.students_count ?? 5}
+                                                                    {groupStudentsCount || groupStudents.length || 0}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.late ?? lesson.late_count ?? 0}
+                                                                    {lesson.homeworkPending ?? lesson.late ?? lesson.late_count ?? 0}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.completed ?? lesson.completed_count ?? 0}
+                                                                    {lesson.homeworkAccept ?? lesson.completed ?? lesson.completed_count ?? 0}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-600 font-[400] text-[14px]">
-                                                                    {formatDateTime(lesson.created_at || lesson.createdAt || lesson.given_date || lesson.givenDate || lesson.start_date)}
+                                                                    {formatDateTime(lesson.created_at || lesson.createdAt || lesson.start_date)}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-600 font-[400] text-[14px]">
-                                                                    {formatDateTime(lesson.end_date || lesson.endDate || lesson.due_date || lesson.dueDate || lesson.deadline)}
+                                                                    {formatDateTime(lesson.end_date || lesson.endDate || lesson.deadline)}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-600 font-[400] text-[14px]">
                                                                     {formatDateTime(lesson.lesson_date || lesson.lessonDate || lesson.date)}
@@ -1422,9 +1604,22 @@ export default function GroupDetail() {
                                                     <tbody>
                                                         {videos.map((file, index) => {
                                                             const fileId = file.id || file._id || index + 1
-                                                            const fileName = file.name || file.title || file.file_name || file.fileName || file.original_name || file.originalName || `Bitiruv.mp4`
-                                                            const fileSize = file.size || file.file_size || file.fileSize
-                                                            const createdAt = file.created_at || file.createdAt || file.date
+                                                            
+                                                            let fallbackName = "Nomsiz video";
+                                                            let videoUrlForName = file.url || file.file_url || file.fileUrl || file.path || "";
+                                                            if (videoUrlForName) {
+                                                                const parts = videoUrlForName.split("/");
+                                                                if(parts.length > 0 && parts[parts.length - 1]) {
+                                                                    fallbackName = parts[parts.length - 1];
+                                                                }
+                                                            }
+                                                            const fileName = file.originalname || file.name || file.title || file.file_name || file.fileName || file.original_name || file.originalName || fallbackName;
+                                                            
+                                                            const fileSize = file.size || file.file_size || file.fileSize;
+                                                            const fileSizeMb = file.size_mb;
+                                                            const createdAt = file.created_at || file.createdAt || file.date;
+                                                            const lessonName = file.lesson?.topic || file.lesson?.title || file.lesson?.name || file.lesson_name || "Biriktirilmagan dars";
+                                                            const lessonDate = file.lesson?.date || file.lesson?.lesson_date || file.lesson_date;
 
                                                             const formatSize = (bytes) => {
                                                                 if (!bytes) return "3.53 MB"
@@ -1438,13 +1633,30 @@ export default function GroupDetail() {
                                                                     key={fileId} 
                                                                     className={`border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer`}
                                                                     onClick={() => {
-                                                                        console.log('Video clicked:', { url: file.url, fileName, fileSize });
+                                                                        const rawUrl = file.video_url || file.url || file.file_url || file.fileUrl || file.path || "";
+                                                                        const fId = file.id || file._id;
+                                                                        
+                                                                        let videoUrl = "";
+                                                                        if (rawUrl && rawUrl.startsWith("http")) {
+                                                                            // To'liq URL bo'lsa ishlatamiz
+                                                                            videoUrl = rawUrl;
+                                                                        } else {
+                                                                            // Fayl ID orqali stream qilamiz
+                                                                            videoUrl = `${API_URL}/files/stream/${fId}`;
+                                                                        }
+                                                                        
+                                                                        const tok = (token || '').replace(/^Bearer\s+/i, '').trim();
+                                                                        
+                                                                        console.log('Video clicked:', { videoUrl, rawUrl, fId, file });
                                                                         setSelectedVideoPlayer({
-                                                                            url: file.url,
+                                                                            url: videoUrl,
+                                                                            token: tok,
+                                                                            fileId: fId,
+                                                                            rawVideoUrl: rawUrl,
                                                                             name: fileName,
-                                                                            size: formatSize(fileSize),
-                                                                            lesson: file.lesson_name || (index === 0 ? "Nodejs" : index === 1 ? "Html asoslari" : index === 2 ? "takrorlash" : "State and Props"),
-                                                                            date: createdAt ? formatDateOnly(createdAt) : (index === 0 ? "18 May, 2026" : index === 1 ? "18 May, 2026" : index === 2 ? "19 May, 2026" : "21 May, 2026")
+                                                                            size: fileSizeMb ? `${fileSizeMb.toFixed(2)} MB` : formatSize(fileSize),
+                                                                            lesson: lessonName,
+                                                                            date: createdAt ? formatDateOnly(createdAt) : "Noma'lum"
                                                                         });
                                                                     }}
                                                                 >
@@ -1458,19 +1670,19 @@ export default function GroupDetail() {
                                                                         </div>
                                                                     </td>
                                                                     <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                        {file.lesson_name || (index === 0 ? "Nodejs" : index === 1 ? "Html asoslari" : index === 2 ? "takrorlash" : "State and Props")}
+                                                                        {lessonName}
                                                                     </td>
                                                                     <td className="px-[20px] py-[20px]">
                                                                         <span className="px-[12px] py-[4px] bg-green-50 text-green-500 rounded-full text-[12px] font-[700]">Tayyor</span>
                                                                     </td>
                                                                     <td className="px-[20px] py-[20px] text-gray-600 font-[500] text-[14px]">
-                                                                        {file.lesson_date ? formatDateOnly(file.lesson_date) : (index === 0 ? "14 May, 2026" : index === 1 ? "12 May, 2026" : index === 2 ? "19 May, 2026" : "21 May, 2026")}
+                                                                        {lessonDate ? formatDateOnly(lessonDate) : "Noma'lum"}
                                                                     </td>
                                                                     <td className="px-[20px] py-[20px] text-gray-600 font-[500] text-[14px]">
-                                                                        {formatSize(fileSize)}
+                                                                        {fileSizeMb ? `${fileSizeMb.toFixed(2)} MB` : formatSize(fileSize)}
                                                                     </td>
                                                                     <td className="px-[20px] py-[20px] text-gray-600 font-[500] text-[14px]">
-                                                                        {createdAt ? formatDateOnly(createdAt) : (index === 0 ? "18 May, 2026" : index === 1 ? "18 May, 2026" : index === 2 ? "19 May, 2026" : "21 May, 2026")}
+                                                                        {createdAt ? formatDateOnly(createdAt) : "Noma'lum"}
                                                                     </td>
                                                                     <td className="px-[20px] py-[20px] text-right relative">
                                                                         <button 
@@ -1669,7 +1881,10 @@ export default function GroupDetail() {
                                 onDrop={(e) => {
                                     e.preventDefault();
                                     setVideoDragOver(false);
-                                    if (e.dataTransfer.files?.[0]) setVideoFile(e.dataTransfer.files[0]);
+                                    if (e.dataTransfer.files?.[0]) {
+                                        setVideoFile(e.dataTransfer.files[0]);
+                                        setVideoNameInput(e.dataTransfer.files[0].name);
+                                    }
                                 }}
                             >
                                 <input
@@ -1677,7 +1892,10 @@ export default function GroupDetail() {
                                     className="hidden"
                                     accept=".mp4,.webm,.mpeg,.avi,.mkv,.m4v,.ogm,.mov"
                                     onChange={(e) => {
-                                        if (e.target.files?.[0]) setVideoFile(e.target.files[0]);
+                                        if (e.target.files?.[0]) {
+                                            setVideoFile(e.target.files[0]);
+                                            setVideoNameInput(e.target.files[0].name);
+                                        }
                                     }}
                                 />
                                 <div className="mb-[24px] text-[#00b87c]">
@@ -1711,9 +1929,9 @@ export default function GroupDetail() {
                                                     {videoFile.name}
                                                 </td>
                                                 <td className="px-[20px] py-[16px] border-r border-gray-100">
-                                                    <select className="w-full text-[14px] outline-none bg-transparent text-gray-500 cursor-pointer">
+                                                    <select value={selectedVideoLessonId} onChange={(e) => setSelectedVideoLessonId(e.target.value)} className="w-full text-[14px] outline-none bg-transparent text-gray-500 cursor-pointer">
                                                         <option value="">Darsni tanlang</option>
-                                                        {generalLessons?.map((l, index) => (
+                                                        {(generalLessons?.length > 0 ? generalLessons : (lessons?.length > 0 ? lessons : schedules))?.map((l, index) => (
                                                             <option key={l.id || l._id || index} value={l.id || l._id || index}>
                                                                 {l.name || l.title || l.lesson_name || l.lesson_title || l.mavzu || l.topic || l.lesson_topic || `Dars ${index + 1}`}
                                                             </option>
@@ -1721,7 +1939,7 @@ export default function GroupDetail() {
                                                     </select>
                                                 </td>
                                                 <td className="px-[20px] py-[16px] border-r border-gray-100">
-                                                    <input type="text" className="w-full text-[14px] outline-none bg-transparent text-gray-900 font-[500]" defaultValue={videoFile.name} />
+                                                    <input type="text" className="w-full text-[14px] outline-none bg-transparent text-gray-900 font-[500]" value={videoNameInput} onChange={(e) => setVideoNameInput(e.target.value)} />
                                                 </td>
                                                 <td className="px-[20px] py-[16px] text-center">
                                                     <button onClick={() => setVideoFile(null)} className="w-[32px] h-[32px] flex items-center justify-center rounded-[8px] hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors mx-auto">
@@ -1781,20 +1999,16 @@ export default function GroupDetail() {
                         
                         {/* Video Area */}
                         <div className="w-full bg-black flex items-center justify-center relative aspect-video">
-                            {selectedVideoPlayer.url ? (
-                                <video 
-                                    src={selectedVideoPlayer.url} 
-                                    controls 
-                                    className="w-full h-full object-contain"
-                                >
-                                    Your browser does not support the video tag.
-                                </video>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center gap-[16px] text-center">
-                                    <i className="fa-regular fa-circle-play text-white text-[64px] opacity-30"></i>
-                                    <p className="text-gray-400 text-[14px] font-[500]">Video yuklanmoqda yoki mavjud emas...</p>
-                                </div>
-                            )}
+                            <VideoPlayer 
+                                url={selectedVideoPlayer.url}
+                                token={selectedVideoPlayer.token}
+                                fileId={selectedVideoPlayer.fileId}
+                                rawVideoUrl={selectedVideoPlayer.rawVideoUrl}
+                            />
+                        </div>
+                        {/* Debug: show URL */}
+                        <div className="px-[24px] py-[8px] bg-[#111] border-t border-gray-800/30">
+                            <p className="text-[11px] text-gray-500 font-mono break-all">URL: <a href={selectedVideoPlayer.url} target="_blank" rel="noreferrer" className="text-blue-400 underline">{selectedVideoPlayer.url}</a></p>
                         </div>
 
                         {/* Footer Details */}

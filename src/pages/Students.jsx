@@ -34,6 +34,8 @@ export default function Students() {
     const [error, setError] = useState("")
     const [toast, setToast] = useState(null) // { type: 'success' | 'error', message: string }
     const [editingStudent, setEditingStudent] = useState(null)
+    const [showArchive, setShowArchive] = useState(false)
+    const [isFetching, setIsFetching] = useState(false)
 
     const showToast = (type, message) => {
         setToast({ type, message })
@@ -42,11 +44,22 @@ export default function Students() {
 
     const openEditDrawer = (student) => {
         setEditingStudent(student)
-        setPhone(student.phone || "+998")
-        setEmail(student.email || "")
-        setName(student.name || "")
-        setBirthDate(student.birthDate || "")
-        setAddress(student.address || "")
+        setPhone(student.phone !== "Noma'lum" ? student.phone : "+998")
+        setEmail(student.email !== "Noma'lum" ? student.email : "")
+        setName(student.name !== "Noma'lum student" ? student.name : "")
+        
+        let formattedDate = ""
+        if (student.birthDate && student.birthDate !== "Noma'lum") {
+            const parts = student.birthDate.split('.')
+            if (parts.length === 3) {
+                formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`
+            } else {
+                formattedDate = student.birthDate
+            }
+        }
+        setBirthDate(formattedDate)
+        
+        setAddress(student.address !== "Noma'lum" ? student.address : "")
         setPassword("")
         setSelectedGroups(student.groups || [])
         setIsDrawerOpen(true)
@@ -64,7 +77,7 @@ export default function Students() {
         setError("")
     }
 
-    const fetchStudents = async () => {
+    const fetchStudents = async (isArchive = showArchive) => {
         const token = localStorage.getItem("token") || ""
         
         const findStudentsArray = (obj) => {
@@ -92,7 +105,11 @@ export default function Students() {
         }
 
         try {
-            const response = await fetch("https://najot-edu.softwareengineer.uz/api/v1/students", {
+            setIsFetching(true)
+            const url = isArchive 
+                ? 'https://najot-edu.softwareengineer.uz/api/v1/students/archive'
+                : 'https://najot-edu.softwareengineer.uz/api/v1/students'
+            const response = await fetch(url, {
                 headers: {
                     "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
                 }
@@ -118,6 +135,8 @@ export default function Students() {
             }
         } catch (error) {
             console.error("Error fetching students:", error)
+        } finally {
+            setIsFetching(false)
         }
     }
 
@@ -151,14 +170,14 @@ export default function Students() {
         const token = localStorage.getItem("token") || ""
 
         const payload = {
-            phone,
-            email,
             full_name: name,
-            birth_date: birthDate || null,
-            address,
-            ...(password && { password }),
-            groups: selectedGroups.map(g => typeof g === 'object' ? g.id : g)
+            phone: phone
         }
+        if (email && email !== "Noma'lum") payload.email = email;
+        if (birthDate && birthDate !== "Noma'lum") payload.birth_date = birthDate;
+        if (address && address !== "Noma'lum") payload.address = address;
+        if (password) payload.password = password;
+        if (selectedGroups.length > 0) payload.groups = selectedGroups.map(g => typeof g === 'object' ? g.id : g);
 
         try {
             const isUpdate = !!editingStudent
@@ -225,7 +244,7 @@ export default function Students() {
                 setIsDrawerOpen(false)
                 resetForm()
             } else {
-                const errMsg = data.message || "Xatolik yuz berdi!"
+                const errMsg = Array.isArray(data.message) ? data.message.join(", ") : (data.message || "Xatolik yuz berdi!")
                 setError(errMsg)
                 showToast("error", errMsg)
             }
@@ -359,7 +378,25 @@ export default function Students() {
                                     <Button variant="outlined" sx={{ color: '#374151', borderColor: '#e5e7eb', textTransform: 'none', borderRadius: '8px', px: 2 }}>
                                         <i className="fa-solid fa-sliders mr-2"></i> Filters
                                     </Button>
-                                    <Button variant="outlined" sx={{ color: '#374151', borderColor: '#e5e7eb', textTransform: 'none', borderRadius: '8px', px: 2 }}>
+                                    <Button 
+                                        variant={showArchive ? "contained" : "outlined"}
+                                        onClick={() => {
+                                            const newVal = !showArchive;
+                                            setShowArchive(newVal);
+                                            fetchStudents(newVal);
+                                        }}
+                                        sx={{ 
+                                            color: showArchive ? 'white' : '#374151', 
+                                            bgcolor: showArchive ? '#7c3aed' : 'transparent',
+                                            borderColor: '#e5e7eb', 
+                                            textTransform: 'none', 
+                                            borderRadius: '8px', 
+                                            px: 2,
+                                            '&:hover': {
+                                                bgcolor: showArchive ? '#6d28d9' : 'transparent',
+                                            }
+                                        }}
+                                    >
                                         Arxiv
                                     </Button>
                                 </div>
@@ -382,7 +419,16 @@ export default function Students() {
                                         </tr>
                                     </thead>
                                     <tbody className="text-[14px]">
-                                        {students.map((student) => (
+                                        {isFetching ? (
+                                            <tr>
+                                                <td colSpan="9" className="py-[40px] px-[12px] text-center">
+                                                    <div className="flex flex-col items-center justify-center gap-3">
+                                                        <i className="fa-solid fa-spinner fa-spin text-[28px] text-purple-600"></i>
+                                                        <span className="text-gray-500 font-[500]">Ma'lumotlar yuklanmoqda...</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ) : students.length > 0 ? students.map((student) => (
                                             <tr key={student.id} className="border-b border-gray-50 hover:bg-gray-50/30 transition-colors">
                                                 <td className="py-[16px] px-[12px]"><Checkbox size="small" /></td>
                                                 <td className="py-[16px] px-[12px]">
@@ -421,7 +467,11 @@ export default function Students() {
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ))}
+                                        )) : (
+                                            <tr>
+                                                <td colSpan="9" className="py-[40px] text-center text-gray-500">Hech qanday talaba topilmadi</td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
