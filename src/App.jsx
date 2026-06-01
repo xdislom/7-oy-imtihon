@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 
 import Login from "./pages/login"
 import Dashboard from "./pages/Dashboard"
@@ -12,6 +12,14 @@ import Students from "./pages/Students"
 import Gifts from "./pages/Gifts"
 import Settings from "./pages/Settings"
 
+// Token yo'q bo'lsa Login ga qaytaradi
+const PrivateRoute = ({ children }) => {
+    const token = localStorage.getItem("token")
+    if (!token || token === "undefined" || token === "null") {
+        return <Navigate to="/" replace />
+    }
+    return children
+}
 
 function App() {
 
@@ -19,23 +27,24 @@ function App() {
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<Login />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/teachers" element={<Teachers />} />
-                <Route path="/classes" element={<Classes />} />
-                <Route path="/dashboard/groups/:groupId/homework/create" element={<GroupHomeworkCreate />} />
-                <Route path="/classes/groups/:groupId/homework/create" element={<GroupHomeworkCreate />} />
-                <Route path="/dashboard/groups/:groupId/exams/create" element={<GroupExamCreate />} />
-                <Route path="/classes/groups/:groupId/exams/create" element={<GroupExamCreate />} />
-                <Route path="/dashboard/groups/:groupId/exams/:examId" element={<GroupExamDetail />} />
-                <Route path="/classes/groups/:groupId/exams/:examId" element={<GroupExamDetail />} />
-                <Route path="/dashboard/groups/:groupId" element={<GroupDetail />} />
-                <Route path="/classes/groups/:groupId" element={<GroupDetail />} />
-                <Route path="/students" element={<Students />} />
-                <Route path="/gifts" element={<Gifts />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/teachers" element={<PrivateRoute><Teachers /></PrivateRoute>} />
+                <Route path="/classes" element={<PrivateRoute><Classes /></PrivateRoute>} />
+                <Route path="/dashboard/groups/:groupId/homework/create" element={<PrivateRoute><GroupHomeworkCreate /></PrivateRoute>} />
+                <Route path="/classes/groups/:groupId/homework/create" element={<PrivateRoute><GroupHomeworkCreate /></PrivateRoute>} />
+                <Route path="/dashboard/groups/:groupId/exams/create" element={<PrivateRoute><GroupExamCreate /></PrivateRoute>} />
+                <Route path="/classes/groups/:groupId/exams/create" element={<PrivateRoute><GroupExamCreate /></PrivateRoute>} />
+                <Route path="/dashboard/groups/:groupId/exams/:examId" element={<PrivateRoute><GroupExamDetail /></PrivateRoute>} />
+                <Route path="/classes/groups/:groupId/exams/:examId" element={<PrivateRoute><GroupExamDetail /></PrivateRoute>} />
+                <Route path="/dashboard/groups/:groupId" element={<PrivateRoute><GroupDetail /></PrivateRoute>} />
+                <Route path="/classes/groups/:groupId" element={<PrivateRoute><GroupDetail /></PrivateRoute>} />
+                <Route path="/students" element={<PrivateRoute><Students /></PrivateRoute>} />
+                <Route path="/gifts" element={<PrivateRoute><Gifts /></PrivateRoute>} />
+                <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
             </Routes>
         </BrowserRouter>
     )
 }
 
 export default App
+

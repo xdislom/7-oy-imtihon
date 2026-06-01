@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { IconButton, Tooltip, Avatar, Accordion, AccordionSummary, AccordionDetails, Switch } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -49,6 +50,7 @@ const MaterialUISwitch = styled(Switch)(({ theme }) => ({
 }));
 
 export default function Header({ onMenuClick }) {
+    const navigate = useNavigate();
     const [selectedLanguage, setSelectedLanguage] = useState("O'zbekcha");
     const [isLangOpen, setIsLangOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -85,6 +87,11 @@ export default function Header({ onMenuClick }) {
     const handleLangSelect = (lang) => {
         setSelectedLanguage(lang);
         setIsLangOpen(false);
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        navigate("/");
     };
 
     return (
@@ -162,8 +169,12 @@ export default function Header({ onMenuClick }) {
                      <IconButton sx={{ color: '#4b5563', p: 0.5 }} onClick={toggleDarkMode}>
                         <i className={`fa-regular fa-${isDark ? 'sun' : 'moon'} text-[20px] ${isDark ? 'text-amber-500' : ''}`}></i>
                     </IconButton>
-                    <div className="w-[42px] h-[42px] bg-[#7c3aed] rounded-full flex items-center justify-center text-white font-[600] text-[18px] shadow-sm cursor-pointer hover:bg-purple-700 transition-colors">
-                        A
+                    <div 
+                        onClick={handleLogout}
+                        title="Chiqish (Logout)"
+                        className="w-[42px] h-[42px] bg-[#7c3aed] rounded-full flex items-center justify-center text-white font-[600] text-[18px] shadow-sm cursor-pointer hover:bg-purple-700 hover:scale-105 transition-all"
+                    >
+                        I
                     </div>
                 </div>
             </div>

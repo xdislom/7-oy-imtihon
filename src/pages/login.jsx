@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom"
 import { Button } from "@mui/material"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import study from "../assets/study.svg"
 import tatu from "../assets/tatu.png"
 
@@ -25,6 +25,11 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+
+    // Login sahifasiga kirganida eski tokenni o'chirish
+    useEffect(() => {
+        localStorage.removeItem("token")
+    }, [])
 
     const handleSubmit = async () => {
         try {
