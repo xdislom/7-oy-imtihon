@@ -749,6 +749,7 @@ export default function Groups() {
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchGroups()
+            fetchCourses()
             fetchRooms()
             fetchTeachers()
             fetchStudents()
