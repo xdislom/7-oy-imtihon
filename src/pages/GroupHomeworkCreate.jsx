@@ -357,6 +357,32 @@ export default function GroupHomeworkCreate() {
                                     <p className="mt-[8px] text-[13px] text-gray-500 font-[500]">Bu vazifa qaysi darsga tegishli ekanligini bildiradi.</p>
                                 </div>
 
+                                {/* Dars sanasi */}
+                                <div>
+                                    <label className="block text-[15px] font-[700] text-gray-800 mb-[10px]">
+                                        Dars sanasi (Ixtiyoriy)
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        value={lessonDate}
+                                        onChange={(e) => setLessonDate(e.target.value)}
+                                        className="w-full rounded-[8px] border border-gray-200 bg-white px-[20px] py-[16px] text-gray-900 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors shadow-sm text-[15px]"
+                                    />
+                                </div>
+
+                                {/* Tugash vaqti */}
+                                <div>
+                                    <label className="block text-[15px] font-[700] text-gray-800 mb-[10px]">
+                                        Tugash vaqti (Deadline) (Ixtiyoriy)
+                                    </label>
+                                    <input
+                                        type="datetime-local"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="w-full rounded-[8px] border border-gray-200 bg-white px-[20px] py-[16px] text-gray-900 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors shadow-sm text-[15px]"
+                                    />
+                                </div>
+
                                 {/* Izoh */}
                                 <div>
                                     <label className="block text-[15px] font-[700] text-gray-800 mb-[10px]">

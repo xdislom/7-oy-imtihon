@@ -1,23 +1,29 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { Button, IconButton } from "@mui/material"
+import {
+    HomeOutlined,
+    PersonOutlineOutlined,
+    LayersOutlined,
+    SchoolOutlined,
+    DiamondOutlined,
+    TuneOutlined
+} from '@mui/icons-material'
 import { useState } from "react"
 import najot from "../assets/logo.jpg"
 
 const navItems = [
-    { to: "/dashboard", icon: "fa-solid fa-house", label: "Asosiy" },
-    { to: "/teachers", icon: "fa-solid fa-user-tie", label: "O'qituvchilar" },
-    { to: "/classes", icon: "fa-solid fa-book-journal-whills", label: "Guruhlar" },
-    { to: "/students",   icon: "fa-solid fa-user-graduate", label: "Talabalar" },
-    { to: "/gifts",      icon: "fa-regular fa-gem",          label: "Sovg'alar" },
-    { to: "/settings", icon: "fa-solid fa-sliders", label: "Boshqarish" },
+    { to: "/dashboard", Icon: HomeOutlined, label: "Asosiy" },
+    { to: "/teachers", Icon: PersonOutlineOutlined, label: "O'qituvchilar" },
+    { to: "/classes", Icon: LayersOutlined, label: "Guruhlar" },
+    { to: "/students", Icon: SchoolOutlined, label: "Talabalar" },
+    { to: "/gifts", Icon: DiamondOutlined, label: "Sovg'alar" },
+    { to: "/settings", Icon: TuneOutlined, label: "Boshqarish" },
 ]
 
 const settingsSubmenu = [
     { icon: "fa-solid fa-graduation-cap", label: "Kurslar",      tab: "Kurslar" },
     { icon: "fa-solid fa-door-open",      label: "Xonalar",      tab: "Xonalar" },
-    { icon: "fa-solid fa-building",       label: "Filiallar",    tab: "Filiallar" },
     { icon: "fa-solid fa-user-tag",       label: "Hodimlar",     tab: "Hodimlar" },
-    { icon: "fa-solid fa-shield-halved",  label: "Rollar",       tab: "Rollar" },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -106,7 +112,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                     } ${item.to === "/settings" && isSubmenuOpen ? "bg-purple-600 text-white" : ""}`
                                 }
                             >
-                                <i className={`${item.icon} ${isCollapsed ? '' : 'pt-[5px]'}`}></i>
+                                <item.Icon sx={{ fontSize: 24 }} className={isCollapsed ? '' : ''} />
                                 {!isCollapsed && item.label}
                             </NavLink>
                         ))}

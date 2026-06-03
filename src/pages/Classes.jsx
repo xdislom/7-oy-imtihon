@@ -655,6 +655,7 @@ export default function Groups() {
             const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/groups/${groupToDelete.id}`, {
                 method: "DELETE",
                 headers: {
+                    "Content-Type": "application/json",
                     "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
                 }
             });

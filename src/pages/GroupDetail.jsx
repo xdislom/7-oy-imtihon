@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Sidebar from "../components/Sidebar"
 import Header from "../components/Header"
@@ -11,37 +11,118 @@ function VideoPlayer({ url, token, fileId, rawVideoUrl }) {
     const [urlsToTry, setUrlsToTry] = useState([])
     const [currentIndex, setCurrentIndex] = useState(0)
     const [error, setError] = useState("")
+    const [blobUrl, setBlobUrl] = useState("")
+    const blobUrlRef = useRef(null)
 
     useEffect(() => {
         let tryUrls = []
         if (url && url.startsWith("http")) tryUrls.push(url)
+        const authToken = (token || '').replace(/^Bearer\s+/i, '').trim()
         
         let fileName = "";
         if (rawVideoUrl) {
             fileName = rawVideoUrl.split("/").pop();
             const d = "https://najot-edu.softwareengineer.uz";
-            
+            const normalizedRaw = rawVideoUrl.replace(/^\/+/, "");
+            const withoutPublic = normalizedRaw.replace(/^(public\/+)+/, "");
+
+            if (rawVideoUrl.startsWith("http")) {
+                tryUrls.push(rawVideoUrl);
+            }
+
+            if (rawVideoUrl.startsWith("/public/")) {
+                tryUrls.push(`${d}/${withoutPublic}`);
+                tryUrls.push(`${d}${rawVideoUrl.replace(/^\/public/, "")}`);
+            }
+
+            if (rawVideoUrl.startsWith("/")) {
+                tryUrls.push(`${d}${rawVideoUrl}`);
+            } else if (!rawVideoUrl.startsWith("http")) {
+                tryUrls.push(`${d}/${normalizedRaw}`);
+            }
+
+            if (withoutPublic && withoutPublic !== normalizedRaw) {
+                tryUrls.push(`${d}/${withoutPublic}`);
+            }
+
+            tryUrls.push(`${d}/assets/${fileName}`);
             tryUrls.push(`${d}/uploads/${fileName}`);
-            tryUrls.push(`${d}/public/uploads/${fileName}`);
             tryUrls.push(`${d}/api/v1/uploads/${fileName}`);
             tryUrls.push(`${d}/files/${fileName}`);
             tryUrls.push(`${d}/api/v1/files/${fileName}`);
-            tryUrls.push(`${d}/assets/${fileName}`);
         }
 
         if (fileId) {
-            // Agar API ochiq bo'lsa bular ishlashi mumkin
-            tryUrls.push(`${API_URL}/files/stream/${fileId}`)
-            tryUrls.push(`${API_URL}/files/${fileId}/stream`)
+            // Use direct download endpoints instead of stream
             tryUrls.push(`${API_URL}/files/download/${fileId}`)
             tryUrls.push(`${API_URL}/files/${fileId}`)
+            // If we have an auth token, also try passing it as a query parameter (some backends accept this)
+            if (authToken) {
+                tryUrls.push(`${API_URL}/files/download/${fileId}?token=${encodeURIComponent(authToken)}`)
+                tryUrls.push(`${API_URL}/files/${fileId}?token=${encodeURIComponent(authToken)}`)
+            }
         }
 
         const uniqueUrls = [...new Set(tryUrls)]
         setUrlsToTry(uniqueUrls)
         setCurrentIndex(0)
         setError("")
+        console.log('VideoPlayer: candidate URLs', uniqueUrls)
     }, [url, fileId, rawVideoUrl])
+
+    useEffect(() => {
+        if (blobUrlRef.current) {
+            URL.revokeObjectURL(blobUrlRef.current)
+            blobUrlRef.current = null
+        }
+
+        const currentUrl = urlsToTry[currentIndex]
+        if (!currentUrl) {
+            setBlobUrl("")
+            return
+        }
+
+        const shouldFetchWithAuth = token && currentUrl.startsWith(API_URL)
+        if (!shouldFetchWithAuth) {
+            setBlobUrl("")
+            return
+        }
+
+        const controller = new AbortController()
+        const authToken = (token || '').replace(/^Bearer\s+/i, '').trim()
+        console.log('VideoPlayer: attempting authenticated fetch', currentUrl)
+        fetch(currentUrl, {
+            headers: { Authorization: `Bearer ${authToken}` },
+            signal: controller.signal
+        })
+            .then((res) => {
+                console.log('VideoPlayer: fetch response', currentUrl, res.status, res.headers.get('content-type'))
+                if (!res.ok) throw new Error(`Video fetch failed ${res.status}`)
+                return res.blob()
+            })
+            .then((blob) => {
+                const objectUrl = URL.createObjectURL(blob)
+                blobUrlRef.current = objectUrl
+                setBlobUrl(objectUrl)
+                console.log('VideoPlayer: created blob URL', objectUrl)
+            })
+            .catch((err) => {
+                console.error("Video authenticated fetch failed:", err, currentUrl)
+                if (currentIndex < urlsToTry.length - 1) {
+                    setCurrentIndex((prev) => prev + 1)
+                } else {
+                    setError("Video topilmadi yoki serverdan kelmayapti.")
+                }
+            })
+
+        return () => {
+            controller.abort()
+            if (blobUrlRef.current) {
+                URL.revokeObjectURL(blobUrlRef.current)
+                blobUrlRef.current = null
+            }
+        }
+    }, [urlsToTry, currentIndex, token])
 
     if (error) {
         return (
@@ -55,26 +136,35 @@ function VideoPlayer({ url, token, fileId, rawVideoUrl }) {
     if (urlsToTry.length === 0) return null;
 
     const currentUrl = urlsToTry[currentIndex];
+    const isAuthUrl = token && currentUrl && currentUrl.startsWith(API_URL);
+    const videoSrc = isAuthUrl ? blobUrl : currentUrl;
 
     return (
         <div className="w-full h-full relative group">
-            <video
-                key={currentUrl} // force reload when URL changes
-                src={currentUrl}
-                controls
-                autoPlay
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                    console.error("Video yuklanmadi:", currentUrl);
-                    if (currentIndex < urlsToTry.length - 1) {
-                        setCurrentIndex(prev => prev + 1);
-                    } else {
-                        setError("Video topilmadi yoki serverdan kelmayapti.");
-                    }
-                }}
-            >
-                Your browser does not support the video tag.
-            </video>
+            {isAuthUrl && !blobUrl ? (
+                <div className="flex flex-col items-center justify-center w-full h-full text-white gap-3">
+                    <i className="fa-solid fa-spinner fa-spin text-[32px]"></i>
+                    <p className="text-[13px] text-gray-300">Video manzili tekshirilmoqda...</p>
+                </div>
+            ) : (
+                <video
+                    key={videoSrc || currentUrl}
+                    src={videoSrc}
+                    controls
+                    autoPlay
+                    className="w-full h-full object-contain"
+                    onError={() => {
+                        console.error("Video yuklanmadi:", currentUrl);
+                        if (currentIndex < urlsToTry.length - 1) {
+                            setCurrentIndex(prev => prev + 1);
+                        } else {
+                            setError("Video topilmadi yoki serverdan kelmayapti.");
+                        }
+                    }}
+                >
+                    Your browser does not support the video tag.
+                </video>
+            )}
             
             {/* Faqat qidirish jarayonida manzilni ko'rsatamiz */}
             {currentIndex < urlsToTry.length - 1 && (
@@ -484,7 +574,9 @@ export default function GroupDetail() {
             // formData.append("name", videoNameInput); // Agar API da video nomi ham kerak bo'lsa
 
             const tok = (token || '').replace(/^Bearer\s+/i, '').trim();
-            const response = await fetch(`${API_URL}/files/group/${groupId}/upload?lessonId=${selectedVideoLessonId}`, {
+            const uploadUrl = `${API_URL}/files/group/${groupId}/upload?lessonId=${selectedVideoLessonId}`;
+            console.log("Video upload URL:", uploadUrl);
+            const response = await fetch(uploadUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${tok}`
@@ -791,17 +883,14 @@ export default function GroupDetail() {
         }
         setHomeworkLoading(true)
         try {
-            const res = await fetch(`${API_URL}/homework/all`, { headers })
+            const res = await fetch(`${API_URL}/homework/${groupId}`, { headers })
             if (res.ok) {
                 const data = await res.json()
-                const allList = findArray(data)
-                const filtered = allList.filter(hw => {
-                    const hwGroupId = hw.group_id || hw.groupId || hw.group?.id
-                    return String(hwGroupId) === String(groupId)
-                })
-                console.log("✅ Homework/all:", allList.length, "ta, bu guruh uchun:", filtered.length, "ta")
-                if (filtered.length > 0) console.log("📦 Birinchi homework fieldi:", JSON.stringify(filtered[0]))
-                setLessons(filtered)
+                // Endpoint guruhga tegishli vazifalarni qaytaradi, shuning uchun to'g'ridan-to'g'ri olamiz
+                const groupHomeworks = findArray(data)
+                console.log("✅ Homework:", groupHomeworks.length, "ta topildi")
+                if (groupHomeworks.length > 0) console.log("📦 Birinchi homework fieldi:", JSON.stringify(groupHomeworks[0]))
+                setLessons(groupHomeworks)
             } else if (res.status === 401) {
                 localStorage.removeItem("token")
                 navigate("/")
@@ -851,49 +940,56 @@ export default function GroupDetail() {
     }
 
     const fetchVideos = async () => {
-        const tok = (token || '').replace(/^Bearer\s+/i, '').trim()
-        if (!tok) return
         setVideosLoading(true)
         setVideosError("")
         try {
-            const headers = { "Authorization": `Bearer ${tok}` }
-            // Try primary endpoint
-            let res = await fetch(`${API_URL}/files/${groupId}`, { headers })
-            if (!res.ok && res.status !== 401) {
-                // Fallback endpoint
-                res = await fetch(`${API_URL}/files/all?group_id=${groupId}`, { headers })
-            }
-            if (res.status === 401) {
-                localStorage.removeItem("token")
-                navigate("/")
-                return
-            }
-            if (res.ok) {
-                const data = await res.json()
-                const backendVideos = findArray(data) || [];
-                const savedMocks = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]');
-                setVideos([...savedMocks, ...backendVideos])
-                setVideosError("")
-            } else {
-                // Even on error, show saved local videos
-                const savedMocks = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]');
-                if (savedMocks.length > 0) {
-                    setVideos(savedMocks);
-                    setVideosError("");
-                } else {
-                    setVideosError("Videolar yuklanishda xatolik yuz berdi")
+            const savedMocks = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]') || [];
+            let merged = [...savedMocks]
+
+            const tok = (token || '').replace(/^Bearer\s+/i, '').trim()
+            if (tok) {
+                const headers = { "Authorization": `Bearer ${tok}` }
+                const endpoints = [
+                    `${API_URL}/files/group/${groupId}`,
+                    `${API_URL}/groups/${groupId}/files`,
+                    `${API_URL}/files?groupId=${groupId}`,
+                    `${API_URL}/files/${groupId}`,
+                    'https://najot-edu.softwareengineer.uz/api/v1/files/45'
+                ]
+
+                for (const endpoint of endpoints) {
+                    try {
+                        const res = await fetch(endpoint, { headers })
+                        if (!res.ok) {
+                            console.warn(`Video fetch failed: ${endpoint} -> ${res.status}`)
+                            continue
+                        }
+
+                        const data = await res.json()
+                        const arr = findArray(data)
+                        if (arr && arr.length > 0) {
+                            merged = [...merged, ...arr]
+                            break
+                        }
+
+                        const obj = findObject(data)
+                        if (obj && Object.keys(obj).length > 0) {
+                            merged.push(obj)
+                            break
+                        }
+                    } catch (e) {
+                        console.warn(`Video fetch failed for ${endpoint}:`, e)
+                    }
                 }
             }
+
+            setVideos(merged)
+            setVideosError("")
         } catch (err) {
             console.error("Videos fetch error:", err)
-            // On network error, still show locally saved videos
-            const savedMocks = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]');
-            if (savedMocks.length > 0) {
-                setVideos(savedMocks);
-                setVideosError("");
-            } else {
-                setVideosError("Server xatoligi");
-            }
+            const savedMocks = JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]') || [];
+            setVideos(savedMocks);
+            setVideosError("")
         } finally {
             setVideosLoading(false)
         }
@@ -1523,18 +1619,33 @@ export default function GroupDetail() {
                                                     </thead>
                                                     <tbody>
                                                         {lessons.map((lesson, index) => (
-                                                            <tr key={lesson.id || index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                                            <tr 
+                                                                key={lesson.id || index} 
+                                                                onClick={() => navigate(`${location.pathname}/homework/${lesson.id}/results`, { state: { lesson } })}
+                                                                className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                                                            >
                                                                 <td className="px-[20px] py-[20px] text-gray-500 font-[500] text-[14px]">
                                                                     {index + 1}
                                                                 </td>
-                                                                <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.title || lesson.topic || lesson.name || lesson.subject || lesson.description || "—"}
+                                                                <td className="px-[20px] py-[20px]">
+                                                                    {(() => {
+                                                                        const pending = lesson.homeworkPending ?? lesson.pending_count ?? lesson.pendingCount ?? lesson.pending ?? 0
+                                                                        return Number(pending) > 0 ? (
+                                                                            <span className="block w-full px-[14px] py-[8px] bg-[#ff6b6b] text-white rounded-[8px] font-[600] text-[14px]">
+                                                                                {lesson.title || lesson.topic || lesson.name || lesson.subject || lesson.description || "—"}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="text-gray-900 font-[600] text-[14px]">
+                                                                                {lesson.title || lesson.topic || lesson.name || lesson.subject || lesson.description || "—"}
+                                                                            </span>
+                                                                        )
+                                                                    })()}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
                                                                     {groupStudentsCount || groupStudents.length || 0}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.homeworkPending ?? lesson.late ?? lesson.late_count ?? 0}
+                                                                    {lesson.homeworkPending ?? lesson.pending_count ?? lesson.pendingCount ?? lesson.pending ?? 0}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
                                                                     {lesson.homeworkAccept ?? lesson.completed ?? lesson.completed_count ?? 0}
@@ -1633,16 +1744,18 @@ export default function GroupDetail() {
                                                                     key={fileId} 
                                                                     className={`border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer`}
                                                                     onClick={() => {
-                                                                        const rawUrl = file.video_url || file.url || file.file_url || file.fileUrl || file.path || "";
-                                                                        const fId = file.id || file._id;
+                                                                        const rawUrl = file.video_url || file.url || file.file_url || file.fileUrl || file.path || file.file_path || file.filePath || "";
+                                                                        const fId = file.id || file._id || file.file_id || file.fileId;
                                                                         
                                                                         let videoUrl = "";
-                                                                        if (rawUrl && rawUrl.startsWith("http")) {
-                                                                            // To'liq URL bo'lsa ishlatamiz
-                                                                            videoUrl = rawUrl;
-                                                                        } else {
-                                                                            // Fayl ID orqali stream qilamiz
-                                                                            videoUrl = `${API_URL}/files/stream/${fId}`;
+                                                                        if (rawUrl) {
+                                                                            if (rawUrl.startsWith("http")) {
+                                                                                videoUrl = rawUrl;
+                                                                            } else {
+                                                                                const normalizedRaw = rawUrl.replace(/^\/+/, "");
+                                                                                const fileName = normalizedRaw.split("/").pop();
+                                                                                videoUrl = `https://najot-edu.softwareengineer.uz/files/files/${fileName}`;
+                                                                            }
                                                                         }
                                                                         
                                                                         const tok = (token || '').replace(/^Bearer\s+/i, '').trim();

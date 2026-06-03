@@ -11,6 +11,8 @@ import GroupExamDetail from "./pages/GroupExamDetail"
 import Students from "./pages/Students"
 import Gifts from "./pages/Gifts"
 import Settings from "./pages/Settings"
+import GroupHomeworkResults from "./pages/GroupHomeworkResults"
+import HomeworkCheck from "./pages/HomeworkCheck"
 
 // Token yo'q bo'lsa Login ga qaytaradi
 const PrivateRoute = ({ children }) => {
@@ -36,6 +38,10 @@ function App() {
                 <Route path="/classes/groups/:groupId/exams/create" element={<PrivateRoute><GroupExamCreate /></PrivateRoute>} />
                 <Route path="/dashboard/groups/:groupId/exams/:examId" element={<PrivateRoute><GroupExamDetail /></PrivateRoute>} />
                 <Route path="/classes/groups/:groupId/exams/:examId" element={<PrivateRoute><GroupExamDetail /></PrivateRoute>} />
+                <Route path="/dashboard/groups/:groupId/homework/:homeworkId/results" element={<PrivateRoute><GroupHomeworkResults /></PrivateRoute>} />
+                <Route path="/classes/groups/:groupId/homework/:homeworkId/results" element={<PrivateRoute><GroupHomeworkResults /></PrivateRoute>} />
+                <Route path="/dashboard/groups/:groupId/homework/:homeworkId/results/:studentId" element={<PrivateRoute><HomeworkCheck /></PrivateRoute>} />
+                <Route path="/classes/groups/:groupId/homework/:homeworkId/results/:studentId" element={<PrivateRoute><HomeworkCheck /></PrivateRoute>} />
                 <Route path="/dashboard/groups/:groupId" element={<PrivateRoute><GroupDetail /></PrivateRoute>} />
                 <Route path="/classes/groups/:groupId" element={<PrivateRoute><GroupDetail /></PrivateRoute>} />
                 <Route path="/students" element={<PrivateRoute><Students /></PrivateRoute>} />

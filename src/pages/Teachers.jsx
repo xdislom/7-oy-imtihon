@@ -133,22 +133,38 @@ export default function Teachers() {
 
     // O'qituvchini saqlash (POST) yoki yangilash (PATCH)
     const handleSave = async () => {
-        if (!formData.name || formData.phone === '+998') {
-            alert("Iltimos, o'qituvchi ismi va telefon raqamini kiriting!")
-            return
+        // For new teachers, require name and phone; for updates, allow any change
+        if (!editingTeacher) {
+            if (!formData.name || formData.phone === '+998') {
+                alert("Iltimos, o'qituvchi ismi va telefon raqamini kiriting!")
+                return
+            }
         }
 
         try {
             setIsLoading(true)
             const isUpdate = !!editingTeacher
-            const payload = {
-                full_name: formData.name,
-                phone: formData.phone
+            const payload = {}
+
+            if (isUpdate) {
+                // For updates, only send changed fields
+                if (formData.name !== editingTeacher.name) payload.full_name = formData.name
+                if (formData.phone !== editingTeacher.phone) payload.phone = formData.phone
+                if (formData.email && formData.email !== editingTeacher.email && formData.email !== "Noma'lum") payload.email = formData.email
+                if (formData.address && formData.address !== editingTeacher.address && formData.address !== "Noma'lum") payload.address = formData.address
+                if (formData.password) payload.password = formData.password
+                const groupIds = selectedGroups.map(g => typeof g === 'object' ? (g.id || g._id || g.name) : g)
+                const originalGroupIds = (editingTeacher.groups || []).map(g => typeof g === 'object' ? (g.id || g._id || g.name) : g)
+                if (JSON.stringify(groupIds.sort()) !== JSON.stringify(originalGroupIds.sort())) payload.groups = groupIds
+            } else {
+                // For new teachers, send all fields
+                payload.full_name = formData.name
+                payload.phone = formData.phone
+                if (formData.email && formData.email !== "Noma'lum") payload.email = formData.email
+                if (formData.address && formData.address !== "Noma'lum") payload.address = formData.address
+                if (formData.password) payload.password = formData.password
+                if (selectedGroups.length > 0) payload.groups = selectedGroups.map(g => typeof g === 'object' ? (g.id || g._id || g.name) : g)
             }
-            if (formData.email && formData.email !== "Noma'lum") payload.email = formData.email
-            if (formData.address && formData.address !== "Noma'lum") payload.address = formData.address
-            if (formData.password) payload.password = formData.password
-            if (selectedGroups.length > 0) payload.groups = selectedGroups.map(g => typeof g === 'object' ? (g.id || g._id || g.name) : g)
 
             const token = localStorage.getItem("token") || ""
             const method = isUpdate ? "PATCH" : "POST"
@@ -156,6 +172,14 @@ export default function Teachers() {
                 ? `https://najot-edu.softwareengineer.uz/api/v1/teachers/${editingTeacher.id}`
                 : 'https://najot-edu.softwareengineer.uz/api/v1/teachers'
 
+            // Ensure payload is not empty for PATCH requests
+            if (isUpdate && Object.keys(payload).length === 0) {
+                showToast("error", "O'zgartirilgan maydon yo'q!")
+                setIsLoading(false)
+                return
+            }
+
+            console.log("Sending payload:", payload)
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -229,6 +253,7 @@ export default function Teachers() {
             const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/teachers/${teacherToDelete}`, {
                 method: "DELETE",
                 headers: {
+                    "Content-Type": "application/json",
                     "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
                 }
             })
@@ -396,9 +421,9 @@ export default function Teachers() {
                                                 </div>
                                             </td>
                                             <td className="p-[16px]">
-                                                <div className="flex gap-[6px] flex-wrap">
+                                                <div className="flex gap-[4px] max-w-[200px] overflow-x-auto pb-[4px] custom-scrollbar">
                                                     {(teacher.groups || []).map((group, i) => (
-                                                        <span key={i} className="px-[10px] py-[3px] bg-gray-50 border border-gray-100 rounded-full text-[11px] font-[600] text-gray-500">
+                                                        <span key={i} className="px-[10px] py-[4px] bg-gray-100 border border-gray-200 rounded-[6px] text-[12px] font-[500] text-gray-600 whitespace-nowrap">
                                                             {group}
                                                         </span>
                                                     ))}
@@ -698,6 +723,19 @@ export default function Teachers() {
                 }
                 .animate-fade-in {
                     animation: fade-in 0.2s ease-out;
+                }
+                .custom-scrollbar::-webkit-scrollbar {
+                    height: 4px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #e5e7eb;
+                    border-radius: 4px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #d1d5db;
                 }
             `}} />
         </div>

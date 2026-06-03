@@ -5,8 +5,7 @@ import Header from "../components/Header"
 import { Button } from "@mui/material"
 
 const tabs = [
-    "Kurslar", "Xonalar", "Filiallar", "Hodimlar",
-    "Rollar"
+    "Kurslar", "Xonalar", "Hodimlar"
 ]
 
 const cardColors = [

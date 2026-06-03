@@ -93,7 +93,7 @@ export default function Login() {
                         <label className="font-[500] text-gray-700">Login</label>
                         <input
                             type="text"
-                            placeholder="Loginni kiriting"
+                            placeholder="998XXXXXXXXX"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             className="w-full h-[50px] p-[15px] border border-gray-300 rounded-[10px] outline-none"
@@ -104,7 +104,7 @@ export default function Login() {
                         <label className="font-[500] text-gray-700">Parol</label>
                         <input
                             type={showPassword ? "text" : "password"}
-                            placeholder="Parolni kiriting"
+                            placeholder="XXXXXXXXXX"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full h-[50px] px-[15px] pr-[45px] border border-gray-300 rounded-[10px] outline-none"
@@ -112,7 +112,7 @@ export default function Login() {
                         <button
                             type="button"
                             onClick={() => setShowPassword(prev => !prev)}
-                            className="absolute right-[15px] top-[48px] -translate-y-1/4 text-gray-500 hover:text-gray-700"
+                            className="absolute right-[15px] top-2/3 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                             aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rish"}
                         >
                             <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} />

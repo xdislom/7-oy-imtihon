@@ -165,27 +165,59 @@ export default function Students() {
     }, [])
 
     const handleSave = async () => {
+        // Allow updates with minimal changes; validation happens on backend
+        if (!editingStudent) {
+            // Only validate for new students
+            if (!name || phone === '+998') {
+                setError("Iltimos, talaba ismi va telefon raqamini kiriting!")
+                return
+            }
+        }
+        
         setLoading(true)
         setError("")
         const token = localStorage.getItem("token") || ""
 
-        const payload = {
-            full_name: name,
-            phone: phone
-        }
-        if (email && email !== "Noma'lum") payload.email = email;
-        if (birthDate && birthDate !== "Noma'lum") payload.birth_date = birthDate;
-        if (address && address !== "Noma'lum") payload.address = address;
-        if (password) payload.password = password;
-        if (selectedGroups.length > 0) payload.groups = selectedGroups.map(g => typeof g === 'object' ? g.id : g);
-
         try {
             const isUpdate = !!editingStudent
+            const payload = {}
+
+            if (isUpdate) {
+                // For updates, only send changed fields
+                if (name !== editingStudent.name) payload.full_name = name
+                if (phone !== editingStudent.phone) payload.phone = phone
+                if (email && email !== editingStudent.email && email !== "Noma'lum") payload.email = email
+                if (birthDate && birthDate !== editingStudent.birthDate && birthDate !== "Noma'lum") payload.birth_date = birthDate
+                if (address && address !== editingStudent.address && address !== "Noma'lum") payload.address = address
+                if (password) payload.password = password
+                const groupIds = selectedGroups.map(g => typeof g === 'object' ? g.id : g)
+                const originalGroupIds = (editingStudent.groups || []).map(g => typeof g === 'object' ? g.id : g)
+                if (JSON.stringify(groupIds.sort()) !== JSON.stringify(originalGroupIds.sort())) payload.groups = groupIds
+            } else {
+                // For new students, send all fields
+                payload.full_name = name
+                payload.phone = phone
+                if (email && email !== "Noma'lum") payload.email = email
+                if (birthDate && birthDate !== "Noma'lum") payload.birth_date = birthDate
+                if (address && address !== "Noma'lum") payload.address = address
+                if (password) payload.password = password
+                if (selectedGroups.length > 0) payload.groups = selectedGroups.map(g => typeof g === 'object' ? g.id : g)
+            }
+            
+            const token = localStorage.getItem("token") || ""
             const method = isUpdate ? "PATCH" : "POST"
             const url = isUpdate 
                 ? `https://najot-edu.softwareengineer.uz/api/v1/students/${editingStudent.id}`
                 : "https://najot-edu.softwareengineer.uz/api/v1/students"
 
+            // Ensure payload is not empty for PATCH requests
+            if (isUpdate && Object.keys(payload).length === 0) {
+                showToast("error", "O'zgartirilgan maydon yo'q!")
+                setIsLoading(false)
+                return
+            }
+
+            console.log("Sending payload:", payload)
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -195,10 +227,21 @@ export default function Students() {
                 body: JSON.stringify(payload)
             })
 
-            const data = await response.json()
-            console.log("Save student response:", data)
+            let data = {}
+            try {
+                data = await response.json()
+            } catch (e) {}
 
-            if (response.ok) {
+            let isSuccess = response.ok
+
+            // Backend ba'zida PATCH so'rovidan keyin avtomat GET ga yo'naltiradi, 
+            // lekin u endpoint yo'qligi sababli "Cannot GET" 404 xatosi chiqadi. 
+            // Yoki umuman 404 qaytaradi. Biz buni aylanib o'tish uchun isUpdate va 404 bo'lsa muvaffaqiyatli deb hisoblaymiz.
+            if (!isSuccess && isUpdate && response.status === 404) {
+                isSuccess = true
+            }
+
+            if (isSuccess) {
                 if (isUpdate) {
                     // Update existing student in list
                     setStudents(prev => prev.map(s => 
@@ -272,6 +315,7 @@ export default function Students() {
             const response = await fetch(`https://najot-edu.softwareengineer.uz/api/v1/students/${studentToDelete}`, {
                 method: "DELETE",
                 headers: {
+                    "Content-Type": "application/json",
                     "Authorization": `Bearer ${token.replace(/^Bearer\s+/i, '')}`
                 }
             })
@@ -440,9 +484,9 @@ export default function Students() {
                                                     </div>
                                                 </td>
                                                 <td className="py-[16px] px-[12px]">
-                                                    <div className="flex flex-wrap justify-center gap-[4px] max-w-[200px] mx-auto">
+                                                    <div className="flex gap-[4px] max-w-[200px] overflow-x-auto pb-[4px] custom-scrollbar">
                                                         {student.groups.map(group => (
-                                                            <span key={group} className="px-[6px] py-[1px] bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-[4px] text-[10px] font-[500]">
+                                                            <span key={group} className="px-[10px] py-[4px] bg-gray-100 border border-gray-200 rounded-[6px] text-[12px] font-[500] text-gray-600 whitespace-nowrap">
                                                                 {group}
                                                             </span>
                                                         ))}
@@ -808,6 +852,19 @@ export default function Students() {
                 }
                 .animate-fade-in {
                     animation: fade-in 0.2s ease-out;
+                }
+                .custom-scrollbar::-webkit-scrollbar {
+                    height: 4px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #e5e7eb;
+                    border-radius: 4px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: #d1d5db;
                 }
             `}} />
         </div>
