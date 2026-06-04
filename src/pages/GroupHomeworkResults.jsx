@@ -121,20 +121,28 @@ export default function GroupHomeworkResults() {
                 }
                 
                 const data = await response.json()
+                console.log("📦 RAW API JAVOBI (" + activeTab + "):", data)
                 
-                // Handle: { success, data: { students: [...] } } OR array OR data.data
+                // O'zgaruvchilar tuzilishini har tomonlama tekshirish
                 if (Array.isArray(data)) {
                     setResults(data)
                 } else if (data.data?.students && Array.isArray(data.data.students)) {
                     setResults(data.data.students)
+                } else if (data.data?.results && Array.isArray(data.data.results)) {
+                    setResults(data.data.results)
                 } else if (data.data && Array.isArray(data.data)) {
                     setResults(data.data)
                 } else if (data.students && Array.isArray(data.students)) {
                     setResults(data.students)
+                } else if (data.results && Array.isArray(data.results)) {
+                    setResults(data.results)
                 } else if (data.data?.data && Array.isArray(data.data.data)) {
                     setResults(data.data.data)
+                } else if (data.items && Array.isArray(data.items)) {
+                    setResults(data.items)
                 } else {
                     setResults([])
+                    console.log("❌ Natija topilmadi yoki tuzilma kutilganidek emas!", data)
                 }
             }
         } catch (err) {

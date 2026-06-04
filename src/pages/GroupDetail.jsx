@@ -643,20 +643,27 @@ export default function GroupDetail() {
             }));
 
             try {
-                const saveRes = await fetch(`${API_URL}/attendance`, {
+                // API ga yangi marshrut bo'yicha yuborish: /groups/:groupId/lesson
+                const saveRes = await fetch(`${API_URL}/groups/${groupId}/lesson`, {
                     method: 'POST',
                     headers,
                     body: JSON.stringify({
-                        group_id: Number(groupId) || groupId,
                         topic: mavzu.trim(),
+                        date: selectedDate, // lesson_date o'rniga date yoki date_of_lesson bo'lishi ham mumkin
                         lesson_date: selectedDate,
                         description: tavsif.trim(),
+                        type: lessonType, // O'quv reja yoki boshqa
                         attendances: attendancesList
                     })
                 });
                 
                 if (!saveRes.ok) {
-                    console.warn("Dars va yo'qlama saqlashda xatolik:", await saveRes.text());
+                    const errText = await saveRes.text();
+                    console.warn("Dars va yo'qlama saqlashda xatolik:", errText);
+                    setAttendanceMessage(`Xatolik: ${errText}`);
+                    setAttendanceError(true);
+                    setAttendanceSaving(false);
+                    return; // Xato bo'lsa davom ettirmaslik
                 }
             } catch (err) {
                 console.error("Attendance save error:", err);
@@ -890,7 +897,37 @@ export default function GroupDetail() {
                 const groupHomeworks = findArray(data)
                 console.log("✅ Homework:", groupHomeworks.length, "ta topildi")
                 if (groupHomeworks.length > 0) console.log("📦 Birinchi homework fieldi:", JSON.stringify(groupHomeworks[0]))
-                setLessons(groupHomeworks)
+                
+                // Har bir uyga vazifa uchun ACCEPTED va PENDING sonlarini API dan olamiz
+                const enriched = await Promise.all(groupHomeworks.map(async (hw) => {
+                    try {
+                        const [pendingRes, acceptedRes] = await Promise.all([
+                            fetch(`${API_URL}/group/${groupId}/homework/${hw.id}/results?status=PENDING`, { headers }),
+                            fetch(`${API_URL}/group/${groupId}/homework/${hw.id}/results?status=ACCEPTED`, { headers }),
+                        ])
+                        const pendingData = pendingRes.ok ? await pendingRes.json() : {}
+                        const acceptedData = acceptedRes.ok ? await acceptedRes.json() : {}
+                        
+                        const getCount = (d) => {
+                            if (Array.isArray(d)) return d.length
+                            if (Array.isArray(d?.data?.students)) return d.data.students.length
+                            if (Array.isArray(d?.data)) return d.data.length
+                            if (Array.isArray(d?.students)) return d.students.length
+                            if (Array.isArray(d?.data?.data)) return d.data.data.length
+                            return 0
+                        }
+                        
+                        return {
+                            ...hw,
+                            pending_count: getCount(pendingData),
+                            completed_count: getCount(acceptedData),
+                        }
+                    } catch {
+                        return hw
+                    }
+                }))
+                
+                setLessons(enriched)
             } else if (res.status === 401) {
                 localStorage.removeItem("token")
                 navigate("/")
@@ -1629,7 +1666,7 @@ export default function GroupDetail() {
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px]">
                                                                     {(() => {
-                                                                        const pending = lesson.homeworkPending ?? lesson.pending_count ?? lesson.pendingCount ?? lesson.pending ?? 0
+                                                                        const pending = lesson.homeworkPending ?? lesson.pending_count ?? lesson.pendingCount ?? 0
                                                                         return Number(pending) > 0 ? (
                                                                             <span className="block w-full px-[14px] py-[8px] bg-[#ff6b6b] text-white rounded-[8px] font-[600] text-[14px]">
                                                                                 {lesson.title || lesson.topic || lesson.name || lesson.subject || lesson.description || "—"}
@@ -1645,7 +1682,7 @@ export default function GroupDetail() {
                                                                     {groupStudentsCount || groupStudents.length || 0}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {lesson.homeworkPending ?? lesson.pending_count ?? lesson.pendingCount ?? lesson.pending ?? 0}
+                                                                    {lesson.homeworkPending ?? lesson.pending_count ?? lesson.pendingCount ?? 0}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
                                                                     {lesson.homeworkAccept ?? lesson.completed ?? lesson.completed_count ?? 0}

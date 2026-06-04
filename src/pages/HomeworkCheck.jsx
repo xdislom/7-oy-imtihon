@@ -79,10 +79,27 @@ export default function HomeworkCheck() {
     const trimmedName = `${firstName} ${lastName}`.trim()
     const studentName = student.student?.full_name || student.full_name || (trimmedName ? trimmedName : (student.student?.name || student.name || "O'quvchi"))
 
-    const submittedFiles = student.files || student.attachments || []
-    const studentComment = student.comment || student.description || student.link || ""
-    const submittedAt = student.created_at || student.submitted_at || null
-    const fileCount = submittedFiles.length || student.files_count || 0
+    // Fayllarni har qanday strukturadan topish
+    let submittedFiles = student.files || student.attachments || stateStudent.files || stateStudent.attachments || []
+    if (!submittedFiles.length) {
+        if (student.answer?.files) submittedFiles = student.answer.files
+        else if (student.answer?.attachments) submittedFiles = student.answer.attachments
+        else if (student.homework_answer?.files) submittedFiles = student.homework_answer.files
+        else if (student.file) submittedFiles = [student.file] // Bitta fayl bo'lsa
+        else if (student.attachment) submittedFiles = [student.attachment]
+        else if (student.answer?.file) submittedFiles = [student.answer.file]
+        else if (student.answer?.attachment) submittedFiles = [student.answer.attachment]
+    }
+    
+    // String bo'lib kelsa (masalan bitta URL), array ga aylantiramiz
+    if (typeof submittedFiles === 'string') {
+        submittedFiles = [submittedFiles]
+    }
+
+    const studentComment = student.comment || student.description || student.link || stateStudent.comment || stateStudent.description || student.answer?.comment || student.answer?.description || ""
+    const submittedAt = student.created_at || student.submitted_at || student.submittedAt || student.createdAt || student.answer?.created_at || student.homework_answer?.created_at || stateStudent.created_at || stateStudent.createdAt || stateStudent.submitted_at || stateStudent.submittedAt || null
+    const fileCount = submittedFiles?.length || student.files_count || stateStudent.files_count || 0
+    console.log("👀 Student obyekti:", student)
 
     const formatDateTime = (value) => {
         if (!value) return "—"
@@ -249,20 +266,43 @@ export default function HomeworkCheck() {
                                             </p>
                                             <div className="flex flex-wrap gap-[10px]">
                                                 {submittedFiles.map((file, i) => {
-                                                    const url = file?.url || file?.path || file?.link || (typeof file === 'string' ? file : null)
-                                                    if (!url) return null;
-                                                    const isImage = typeof url === 'string' && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url)
+                                                    let url = file?.url || file?.path || file?.link || file?.file || (typeof file === 'string' ? file : null)
+                                                    
+                                                    // Agar url string bo'lmasa, uni stringga o'girmaymiz, shunchaki o'tkazib yuboramiz
+                                                    if (typeof url !== 'string') return null;
+                                                    
+                                                    // Agar API nisbiy link (path) qaytargan bo'lsa, domen qo'shish
+                                                    if (url.startsWith('/')) {
+                                                        url = `https://najot-edu.softwareengineer.uz${url}`
+                                                    }
+                                                    
+                                                    const isImage = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(url) || 
+                                                        url.includes('image') || 
+                                                        url.includes('picture') ||
+                                                        url.includes('photo') ||
+                                                        url.includes('media/')
+                                                    
                                                     return (
                                                         <a key={i} href={url} target="_blank" rel="noreferrer"
-                                                            className="block w-[90px] h-[90px] rounded-[10px] overflow-hidden border border-gray-200 bg-gray-50 hover:opacity-80 transition-opacity"
+                                                            className="block w-[90px] h-[90px] rounded-[10px] overflow-hidden border border-gray-200 bg-gray-50 hover:opacity-80 transition-opacity relative group"
                                                         >
                                                             {isImage ? (
-                                                                <img src={url} alt={`file-${i}`} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                                                    <i className="fa-regular fa-file text-[28px]"></i>
-                                                                </div>
-                                                            )}
+                                                                <img 
+                                                                    src={url} 
+                                                                    alt={`file-${i}`} 
+                                                                    className="w-full h-full object-cover" 
+                                                                    onError={(e) => {
+                                                                        e.target.style.display = 'none';
+                                                                        e.target.nextSibling.style.display = 'flex';
+                                                                    }}
+                                                                />
+                                                            ) : null}
+                                                            
+                                                            <div 
+                                                                className={`w-full h-full items-center justify-center text-gray-400 bg-gray-50 ${isImage ? 'hidden' : 'flex'}`}
+                                                            >
+                                                                <i className="fa-regular fa-file text-[28px]"></i>
+                                                            </div>
                                                         </a>
                                                     )
                                                 })}
@@ -409,13 +449,6 @@ export default function HomeworkCheck() {
                                         className="px-[28px] py-[12px] rounded-[12px] border border-gray-200 bg-white text-gray-600 font-[600] text-[14px] hover:bg-gray-50 transition-colors"
                                     >
                                         Bekor qilish
-                                    </button>
-                                    <button
-                                        onClick={() => handleSubmit("REJECTED")}
-                                        disabled={loading}
-                                        className={`px-[28px] py-[12px] rounded-[12px] font-[600] text-[14px] border border-red-500 text-red-500 transition-all shadow-sm ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-50'}`}
-                                    >
-                                        Qaytarish
                                     </button>
                                     <button
                                         onClick={() => handleSubmit("ACCEPTED")}
