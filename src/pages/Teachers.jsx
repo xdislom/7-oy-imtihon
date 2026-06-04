@@ -97,7 +97,8 @@ export default function Teachers() {
                     groups: Array.isArray(t.groups) ? t.groups.map(g => typeof g === 'object' ? g.name : g) : [],
                     phone: t.phone || "Noma'lum",
                     birthDate: t.birth_date ? new Date(t.birth_date).toLocaleDateString('ru-RU') : "Noma'lum",
-                    createdDate: t.created_at ? new Date(t.created_at).toLocaleDateString('ru-RU') : "Noma'lum"
+                    createdDate: t.created_at ? new Date(t.created_at).toLocaleDateString('ru-RU') : "Noma'lum",
+                    photo: t.photo || null
                 })))
             }
         } catch (error) {
@@ -148,17 +149,27 @@ export default function Teachers() {
 
             if (isUpdate) {
                 // For updates, only send changed fields
-                if (formData.name !== editingTeacher.name) payload.full_name = formData.name
+                if (formData.name !== editingTeacher.name) {
+                    payload.full_name = formData.name;
+                    payload.name = formData.name;
+                }
                 if (formData.phone !== editingTeacher.phone) payload.phone = formData.phone
                 if (formData.email && formData.email !== editingTeacher.email && formData.email !== "Noma'lum") payload.email = formData.email
                 if (formData.address && formData.address !== editingTeacher.address && formData.address !== "Noma'lum") payload.address = formData.address
                 if (formData.password) payload.password = formData.password
-                const groupIds = selectedGroups.map(g => typeof g === 'object' ? (g.id || g._id || g.name) : g)
-                const originalGroupIds = (editingTeacher.groups || []).map(g => typeof g === 'object' ? (g.id || g._id || g.name) : g)
-                if (JSON.stringify(groupIds.sort()) !== JSON.stringify(originalGroupIds.sort())) payload.groups = groupIds
+                // Tanlangan guruhlar ID larini topamiz (nom bo'yicha kerak bo'lsa availableGroups dan qidiramiz)
+                const groupIds = selectedGroups.map(g => {
+                    if (typeof g === 'object' && (g.id || g._id)) return g.id || g._id
+                    // Agar nom bo'lib kelsa, availableGroups dan ID sini topamiz
+                    const found = availableGroups.find(ag => ag.name === g || ag.id === g)
+                    return found ? (found.id || found._id) : g
+                }).filter(Boolean)
+                // Guruhlar har doim yuborilsin (o'chirish uchun ham kerak)
+                payload.groups = groupIds
             } else {
                 // For new teachers, send all fields
                 payload.full_name = formData.name
+                payload.name = formData.name
                 payload.phone = formData.phone
                 if (formData.email && formData.email !== "Noma'lum") payload.email = formData.email
                 if (formData.address && formData.address !== "Noma'lum") payload.address = formData.address
@@ -286,7 +297,10 @@ export default function Teachers() {
     }
 
     const removeGroup = (groupId) => {
-        setSelectedGroups(selectedGroups.filter(g => (g.id || g) !== groupId))
+        setSelectedGroups(selectedGroups.filter(g => {
+            const id = typeof g === 'object' ? (g.id || g._id || g.name) : g
+            return id !== groupId
+        }))
     }
 
     const handleImageChange = (e) => {
@@ -414,8 +428,20 @@ export default function Teachers() {
                                             <td className="p-[16px]"><Checkbox size="small" /></td>
                                             <td className="p-[16px]">
                                                 <div className="flex items-center gap-[12px]">
-                                                    <div className="w-[36px] h-[36px] rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-[700] text-[13px]">
-                                                        {teacher.name ? teacher.name.charAt(0) : "U"}
+                                                    <div className="w-[36px] h-[36px] rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-[700] text-[13px] overflow-hidden">
+                                                        {teacher.photo ? (
+                                                            <img 
+                                                                src={teacher.photo.startsWith('http') ? teacher.photo : `https://najot-edu.softwareengineer.uz/uploads/${teacher.photo}`}
+                                                                alt={teacher.name}
+                                                                className="w-full h-full object-cover"
+                                                                onError={(e) => {
+                                                                    e.target.style.display = 'none';
+                                                                    e.target.parentNode.innerHTML = teacher.name ? teacher.name.charAt(0).toUpperCase() : "U";
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            teacher.name ? teacher.name.charAt(0).toUpperCase() : "U"
+                                                        )}
                                                     </div>
                                                     <span className="font-[600] text-gray-800">{teacher.name}</span>
                                                 </div>

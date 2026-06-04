@@ -128,6 +128,7 @@ export default function Students() {
                     birthDate: s.birth_date ? new Date(s.birth_date).toLocaleDateString('ru-RU') : "Noma'lum",
                     address: s.address || "Noma'lum",
                     createdDate: s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU') : "Noma'lum",
+                    photo: s.photo || null,
                     initial: (s.full_name || s.name || "S").charAt(0).toUpperCase(),
                     color: colors[index % colors.length]
                 }))
@@ -184,18 +185,28 @@ export default function Students() {
 
             if (isUpdate) {
                 // For updates, only send changed fields
-                if (name !== editingStudent.name) payload.full_name = name
+                if (name !== editingStudent.name) {
+                    payload.full_name = name;
+                    payload.name = name;
+                }
                 if (phone !== editingStudent.phone) payload.phone = phone
                 if (email && email !== editingStudent.email && email !== "Noma'lum") payload.email = email
                 if (birthDate && birthDate !== editingStudent.birthDate && birthDate !== "Noma'lum") payload.birth_date = birthDate
                 if (address && address !== editingStudent.address && address !== "Noma'lum") payload.address = address
                 if (password) payload.password = password
-                const groupIds = selectedGroups.map(g => typeof g === 'object' ? g.id : g)
-                const originalGroupIds = (editingStudent.groups || []).map(g => typeof g === 'object' ? g.id : g)
-                if (JSON.stringify(groupIds.sort()) !== JSON.stringify(originalGroupIds.sort())) payload.groups = groupIds
+                // Tanlangan guruhlar ID larini topamiz (nom bo'yicha kerak bo'lsa availableGroups dan qidiramiz)
+                const groupIds = selectedGroups.map(g => {
+                    if (typeof g === 'object' && (g.id || g._id)) return g.id || g._id
+                    // Agar nom bo'lib kelsa, availableGroups dan ID sini topamiz
+                    const found = availableGroups.find(ag => ag.name === g || ag.id === g)
+                    return found ? (found.id || found._id) : g
+                }).filter(Boolean)
+                // Guruhlar har doim yuborilsin (o'chirish uchun ham kerak)
+                payload.groups = groupIds
             } else {
                 // For new students, send all fields
                 payload.full_name = name
+                payload.name = name
                 payload.phone = phone
                 if (email && email !== "Noma'lum") payload.email = email
                 if (birthDate && birthDate !== "Noma'lum") payload.birth_date = birthDate
@@ -353,7 +364,10 @@ export default function Students() {
     }
 
     const removeGroup = (groupId) => {
-        setSelectedGroups(selectedGroups.filter(g => (g.id || g) !== groupId))
+        setSelectedGroups(selectedGroups.filter(g => {
+            const id = typeof g === 'object' ? (g.id || g._id || g.name) : g
+            return id !== groupId
+        }))
     }
 
     const toggleTempGroup = (group) => {
@@ -477,8 +491,20 @@ export default function Students() {
                                                 <td className="py-[16px] px-[12px]"><Checkbox size="small" /></td>
                                                 <td className="py-[16px] px-[12px]">
                                                     <div className="flex items-center gap-[10px]">
-                                                        <div className={`w-[32px] h-[32px] rounded-full ${student.color} flex items-center justify-center font-[600] text-[12px]`}>
-                                                            {student.initial}
+                                                        <div className={`w-[32px] h-[32px] rounded-full ${student.color} flex items-center justify-center font-[600] text-[12px] overflow-hidden`}>
+                                                            {student.photo ? (
+                                                                <img 
+                                                                    src={student.photo.startsWith('http') ? student.photo : `https://najot-edu.softwareengineer.uz/uploads/${student.photo}`}
+                                                                    alt={student.name}
+                                                                    className="w-full h-full object-cover"
+                                                                    onError={(e) => {
+                                                                        e.target.style.display = 'none';
+                                                                        e.target.parentNode.innerHTML = student.initial;
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                student.initial
+                                                            )}
                                                         </div>
                                                         <span className="font-[600] text-gray-800">{student.name}</span>
                                                     </div>

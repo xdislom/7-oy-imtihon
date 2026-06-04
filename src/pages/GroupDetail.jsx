@@ -532,6 +532,7 @@ export default function GroupDetail() {
     const [attendanceSaving, setAttendanceSaving] = useState(false)
     const [attendanceMessage, setAttendanceMessage] = useState("")
     const [attendanceError, setAttendanceError] = useState(false)
+    const [toast, setToast] = useState(null)
     const [videos, setVideos] = useState(() => JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]'))
     const [videosLoading, setVideosLoading] = useState(false)
     const [videosError, setVideosError] = useState("")
@@ -546,6 +547,11 @@ export default function GroupDetail() {
     const [openVideoMenuId, setOpenVideoMenuId] = useState(null)
     const [deleteConfirmId, setDeleteConfirmId] = useState(null)
     const [mockVideos, setMockVideos] = useState(() => JSON.parse(localStorage.getItem(`mockVideos_${groupId}`) || '[]'))
+
+    const showToast = (type, message) => {
+        setToast({ type, message })
+        setTimeout(() => setToast(null), 3500)
+    }
 
     const getSavedAttendance = (date) => {
         if (!date) return {}
@@ -674,13 +680,11 @@ export default function GroupDetail() {
             setTaughtDates(newTaughtDates);
             localStorage.setItem(`taughtDates_${groupId}`, JSON.stringify(newTaughtDates));
             saveAttendanceForDate(selectedDate, attendance)
-            setAttendanceMessage("Yo'qlama saqlandi")
-            setAttendanceError(false)
+            showToast("success", "Davomat muvaffaqiyatli saqlandi! ✓")
             fetchGeneralLessons() // Darslar ro'yxatini yangilash
         } catch (err) {
             console.error('Attendance save error:', err)
-            setAttendanceMessage("Yo'qlama saqlanmadi")
-            setAttendanceError(true)
+            showToast("error", "Davomat saqlanmadi")
         } finally {
             setAttendanceSaving(false)
         }
@@ -743,7 +747,8 @@ export default function GroupDetail() {
         const tok = (token || '').replace(/^Bearer\s+/i, '').trim()
         if (!tok || !date || !students.length) return
         try {
-            const res = await fetch(`${API_URL}/attendance/all`, {
+            // Yangi dars va yo'qlama endpointi: /groups/:groupId/lesson?date=YYYY-MM-DD
+            const res = await fetch(`${API_URL}/groups/${groupId}/lesson?date=${date}`, {
                 headers: { 'Authorization': `Bearer ${tok}` }
             })
             const init = {}
@@ -752,35 +757,43 @@ export default function GroupDetail() {
             if (!res.ok) {
                 const saved = getSavedAttendance(date)
                 setAttendance(Object.keys(saved).length ? { ...init, ...saved } : init)
+                setMavzu("")
+                setTavsif("")
                 return
             }
 
             const data = await res.json()
-            const list = Array.isArray(data) ? data
-                : Array.isArray(data?.data) ? data.data
-                : Array.isArray(data?.data?.data) ? data.data.data
-                : []
+            console.log("LESSON API RESPONSE:", data)
+            let lesson = data.data || data
+            if (Array.isArray(lesson)) lesson = lesson[0]
+            if (lesson?.data && Array.isArray(lesson.data)) lesson = lesson.data[0]
 
-            // Shu guruh va sana bo'yicha filtrlash
-            const filtered = list.filter(rec => {
-                const recDate = (rec.date || rec.lesson_date || rec.created_at || '').slice(0, 10)
-                const recGroupId = String(rec.group_id || rec.group?.id || '')
-                return recDate === date && recGroupId === String(groupId)
-            })
+            // Agar dars (lesson) kelsa:
+            if (lesson && typeof lesson === 'object' && Object.keys(lesson).length > 0) {
+                setMavzu(lesson.topic || lesson.name || lesson.title || "")
+                setTavsif(lesson.description || lesson.tavsif || "")
+                if (lesson.type) setLessonType(lesson.type)
 
-            if (filtered.length > 0) {
-                filtered.forEach(rec => {
-                    const sid = String(rec.student_id || rec.student?.id || '')
-                    if (sid) {
-                        const isPresent = rec.is_present !== undefined ? !!rec.is_present
-                            : rec.present !== undefined ? !!rec.present
-                            : String(rec.status || '').toLowerCase() === 'present'
-                        init[sid] = isPresent
-                    }
-                })
+                // Yo'qlamalarni tiklash
+                let attList = lesson.attendances || lesson.attendance || []
+                if (typeof attList === 'string') {
+                    try { attList = JSON.parse(attList) } catch(e){}
+                }
+                if (Array.isArray(attList)) {
+                    attList.forEach(rec => {
+                        const sid = String(rec.student_id || rec.student?.id || '')
+                        if (sid) {
+                            const isPresent = rec.isPresent !== undefined ? (rec.isPresent === "true" || rec.isPresent === true) 
+                                : rec.is_present !== undefined ? !!rec.is_present
+                                : rec.present !== undefined ? !!rec.present
+                                : String(rec.status || '').toLowerCase() === 'present'
+                            init[sid] = isPresent
+                        }
+                    })
+                }
                 setAttendance({ ...init })
                 
-                // Agar bazada bu kun uchun yo'qlama bo'lsa, uni avtomat "Dars o'tilgan" (qulflangan) deb belgilaymiz!
+                // Dars o'tilganini (qulflanganini) belgilaymiz
                 setTaughtDates(prev => {
                     const updated = { ...prev, [date]: true }
                     localStorage.setItem(`taughtDates_${groupId}`, JSON.stringify(updated))
@@ -790,6 +803,8 @@ export default function GroupDetail() {
                 // Bu sana uchun API da ma'lumot yo'q – localStorage fallback
                 const saved = getSavedAttendance(date)
                 setAttendance(Object.keys(saved).length ? { ...init, ...saved } : init)
+                setMavzu("")
+                setTavsif("")
             }
         } catch (err) {
             console.warn('fetchAttendanceFromApi error:', err)
@@ -797,6 +812,8 @@ export default function GroupDetail() {
             const init = {}
             students.forEach(s => { init[s.id] = false })
             setAttendance(Object.keys(saved).length ? { ...init, ...saved } : init)
+            setMavzu("")
+            setTavsif("")
         }
     }
 
@@ -1036,21 +1053,6 @@ export default function GroupDetail() {
     useEffect(() => {
         if (selectedDate) {
             fetchGroupStudents()
-            
-            // Dars uchun mavzu va tavsifni avtomatik to'ldirish
-            const allPossibleLessons = [...(generalLessons || []), ...(lessons || []), ...(schedules || [])];
-            const existingLesson = allPossibleLessons.find(l => {
-                const lDate = (l.date || l.lesson_date || l.created_at || '').slice(0, 10);
-                return lDate === selectedDate;
-            });
-            
-            if (existingLesson) {
-                setMavzu(existingLesson.name || existingLesson.title || existingLesson.mavzu || existingLesson.topic || existingLesson.lesson_name || "");
-                setTavsif(existingLesson.description || existingLesson.tavsif || "");
-            } else {
-                setMavzu("");
-                setTavsif("");
-            }
         }
     }, [selectedDate, generalLessons, lessons, schedules])
 
@@ -2210,6 +2212,24 @@ export default function GroupDetail() {
                     </div>
                 </div>
             )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed bottom-[32px] right-[32px] z-[999] flex items-center gap-[12px] px-[20px] py-[14px] rounded-[14px] shadow-2xl text-white text-[14px] font-[600] animate-toast-up ${
+                    toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'
+                }`}>
+                    <i className={`fa-solid ${toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'} text-[18px]`}></i>
+                    {toast.message}
+                </div>
+            )}
+
+            <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes toast-up {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                .animate-toast-up { animation: toast-up 0.3s ease-out; }
+            `}} />
         </div>
     )
 }
