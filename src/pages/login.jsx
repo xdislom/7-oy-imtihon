@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom"
-import { Button } from "@mui/material"
+import { Button, Snackbar, Alert } from "@mui/material"
 import { useState, useEffect } from "react"
 import study from "../assets/study.svg"
 import tatu from "../assets/tatu.png"
@@ -25,6 +25,7 @@ export default function Login() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const [successMessage, setSuccessMessage] = useState("")
 
     // Login sahifasiga kirganida eski tokenni o'chirish
     useEffect(() => {
@@ -54,7 +55,14 @@ export default function Login() {
                     return
                 }
                 localStorage.setItem("token", token)
-                navigate("/dashboard")
+                
+                // Muvaffaqiyatli xabarni ko'rsatish
+                setSuccessMessage("Siz muvaffaqiyatli kirdingiz!")
+                
+                // Biroz kutib (toast ko'rinishi uchun) keyin o'tish
+                setTimeout(() => {
+                    navigate("/dashboard")
+                }, 1200)
             } else {
                 setError(data.message || "Telefon yoki parol noto'g'ri!")
             }
@@ -64,6 +72,13 @@ export default function Login() {
             setLoading(false)
         }
     }
+
+    const handleCloseSnackbar = (event, reason) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+        setSuccessMessage("");
+    };
 
     return (
         <div className="flex flex-col md:flex-row h-screen w-full overflow-hidden">
@@ -137,6 +152,23 @@ export default function Login() {
                 </div>
 
             </div>
+
+            {/* Muvaffaqiyatli kirish xabari */}
+            <Snackbar 
+                open={Boolean(successMessage)} 
+                autoHideDuration={2000} 
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+            >
+                <Alert 
+                    onClose={handleCloseSnackbar} 
+                    severity="success" 
+                    variant="filled"
+                    sx={{ width: '100%' }}
+                >
+                    {successMessage}
+                </Alert>
+            </Snackbar>
         </div>
     )
 }

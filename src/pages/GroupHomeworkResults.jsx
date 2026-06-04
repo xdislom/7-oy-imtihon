@@ -290,8 +290,37 @@ export default function GroupHomeworkResults() {
                                                 >
                                                     <td className="px-[20px] py-[20px]">
                                                         <div className="flex items-center gap-[12px]">
-                                                            <div className="w-[36px] h-[36px] rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-[700] text-[14px] shrink-0">
-                                                                {name.charAt(0).toUpperCase()}
+                                                            <div className="w-[36px] h-[36px] rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-[700] text-[14px] shrink-0 overflow-hidden relative">
+                                                                {(() => {
+                                                                    let avatar = result.student?.avatar || result.student?.image || result.student?.photo || result.avatar || result.image || result.photo || null;
+                                                                    if (avatar && avatar.startsWith('/')) {
+                                                                        avatar = `https://najot-edu.softwareengineer.uz${avatar}`
+                                                                    } else if (avatar && !avatar.startsWith('http')) {
+                                                                        // Agar bu faqat fayl nomi bo'lsa (masalan, 1780572185085.png)
+                                                                        avatar = `https://najot-edu.softwareengineer.uz/uploads/${avatar}`
+                                                                    }
+                                                                    
+                                                                    return avatar ? (
+                                                                        <>
+                                                                            <img 
+                                                                                src={avatar} 
+                                                                                alt={name} 
+                                                                                className="w-full h-full object-cover"
+                                                                                onError={(e) => {
+                                                                                    e.target.style.display = 'none';
+                                                                                    if(e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                                                                                }}
+                                                                            />
+                                                                            <span className="hidden w-full h-full items-center justify-center">
+                                                                                {name.charAt(0).toUpperCase()}
+                                                                            </span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="flex w-full h-full items-center justify-center">
+                                                                            {name.charAt(0).toUpperCase()}
+                                                                        </span>
+                                                                    )
+                                                                })()}
                                                             </div>
                                                             <span className="text-gray-900 font-[600] text-[14px]">{name}</span>
                                                         </div>

@@ -901,9 +901,10 @@ export default function GroupDetail() {
                 // Har bir uyga vazifa uchun ACCEPTED va PENDING sonlarini API dan olamiz
                 const enriched = await Promise.all(groupHomeworks.map(async (hw) => {
                     try {
+                        const actualHwId = (hw.homework && hw.homework.length > 0) ? hw.homework[0].id : hw.id;
                         const [pendingRes, acceptedRes] = await Promise.all([
-                            fetch(`${API_URL}/group/${groupId}/homework/${hw.id}/results?status=PENDING`, { headers }),
-                            fetch(`${API_URL}/group/${groupId}/homework/${hw.id}/results?status=ACCEPTED`, { headers }),
+                            fetch(`${API_URL}/group/${groupId}/homework/${actualHwId}/results?status=PENDING`, { headers }),
+                            fetch(`${API_URL}/group/${groupId}/homework/${actualHwId}/results?status=ACCEPTED`, { headers }),
                         ])
                         const pendingData = pendingRes.ok ? await pendingRes.json() : {}
                         const acceptedData = acceptedRes.ok ? await acceptedRes.json() : {}
@@ -1655,12 +1656,14 @@ export default function GroupDetail() {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {lessons.map((lesson, index) => (
-                                                            <tr 
-                                                                key={lesson.id || index} 
-                                                                onClick={() => navigate(`${location.pathname}/homework/${lesson.id}/results`, { state: { lesson } })}
-                                                                className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
-                                                            >
+                                                        {lessons.map((lesson, index) => {
+                                                            const actualHomeworkId = (lesson.homework && lesson.homework.length > 0) ? lesson.homework[0].id : lesson.id;
+                                                            return (
+                                                                <tr 
+                                                                    key={lesson.id || index} 
+                                                                    onClick={() => navigate(`${location.pathname}/homework/${actualHomeworkId}/results`, { state: { lesson } })}
+                                                                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                                                                >
                                                                 <td className="px-[20px] py-[20px] text-gray-500 font-[500] text-[14px]">
                                                                     {index + 1}
                                                                 </td>
@@ -1702,7 +1705,7 @@ export default function GroupDetail() {
                                                                     </button>
                                                                 </td>
                                                             </tr>
-                                                        ))}
+                                                        )})}
                                                     </tbody>
                                                 </table>
                                             </div>
