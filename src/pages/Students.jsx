@@ -129,7 +129,7 @@ export default function Students() {
                     address: s.address || "Noma'lum",
                     createdDate: s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU') : "Noma'lum",
                     photo: s.photo || null,
-                    initial: (s.full_name || s.name || "S").charAt(0).toUpperCase(),
+                    initial: (s.full_name || s.name || 'S').charAt(0).toUpperCase(),
                     color: colors[index % colors.length]
                 }))
                 setStudents(mapped)
@@ -491,20 +491,8 @@ export default function Students() {
                                                 <td className="py-[16px] px-[12px]"><Checkbox size="small" /></td>
                                                 <td className="py-[16px] px-[12px]">
                                                     <div className="flex items-center gap-[10px]">
-                                                        <div className={`w-[32px] h-[32px] rounded-full ${student.color} flex items-center justify-center font-[600] text-[12px] overflow-hidden`}>
-                                                            {student.photo ? (
-                                                                <img 
-                                                                    src={student.photo.startsWith('http') ? student.photo : `https://najot-edu.softwareengineer.uz/uploads/${student.photo}`}
-                                                                    alt={student.name}
-                                                                    className="w-full h-full object-cover"
-                                                                    onError={(e) => {
-                                                                        e.target.style.display = 'none';
-                                                                        e.target.parentNode.innerHTML = student.initial;
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                student.initial
-                                                            )}
+                                                        <div className={`w-[32px] h-[32px] rounded-full ${student.color} flex items-center justify-center font-[600] text-[13px] flex-shrink-0`}>
+                                                            {student.initial}
                                                         </div>
                                                         <span className="font-[600] text-gray-800">{student.name}</span>
                                                     </div>

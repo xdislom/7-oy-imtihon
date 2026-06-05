@@ -171,7 +171,9 @@ export default function HomeworkCheck() {
 
             if (res.ok) {
                 showToast('success', `${studentName} ga ${score} ball berildi!`)
-                setTimeout(() => goBack(), 1500)
+                if (activeTab !== "ACCEPTED") {
+                    setTimeout(() => goBack(), 1500)
+                }
             } else {
                 const data = await res.json().catch(() => ({}))
                 showToast('error', data.message || "Baholashda xatolik yuz berdi")

@@ -14,6 +14,7 @@ export default function GroupHomeworkResults() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
     const [activeTab, setActiveTab] = useState("PENDING")
+    const [tabCounts, setTabCounts] = useState({ PENDING: 0, REJECTED: 0, ACCEPTED: 0, UNSUBMITTED: 0 })
     const [lessonData, setLessonData] = useState(location.state?.lesson || null)
     
     // As per screenshot
@@ -46,6 +47,74 @@ export default function GroupHomeworkResults() {
             fetchLesson()
         }
     }, [homeworkId, token])
+
+    useEffect(() => {
+        const fetchCounts = async () => {
+            if (!token) return
+            try {
+                const tok = token.replace(/^Bearer\s+/i, '').trim()
+                
+                // 1. Guruh o'quvchilarini olamiz
+                const studentsRes = await fetch(`${API_URL}/groups/one/students/${groupId}`, {
+                    headers: { 'Authorization': `Bearer ${tok}` }
+                })
+                let totalStudents = 0
+                if (studentsRes.ok) {
+                    const studentsData = await studentsRes.json()
+                    const studentsList = Array.isArray(studentsData) ? studentsData 
+                        : Array.isArray(studentsData?.data) ? studentsData.data 
+                        : Array.isArray(studentsData?.data?.data) ? studentsData.data.data : []
+                    totalStudents = studentsList.length
+                }
+
+                // 2. Qolgan uchta status bo'yicha ma'lumotlarni olamiz
+                const statuses = ["PENDING", "REJECTED", "ACCEPTED"]
+                const promises = statuses.map(status => 
+                    fetch(`${API_URL}/group/${groupId}/homework/${homeworkId}/results?status=${status}`, {
+                        headers: { 'Authorization': `Bearer ${tok}` }
+                    }).then(res => res.ok ? res.json() : [])
+                )
+                
+                const resultsArr = await Promise.all(promises)
+                
+                let pendingCount = 0
+                let rejectedCount = 0
+                let acceptedCount = 0
+                let submittedIds = new Set()
+
+                resultsArr.forEach((data, index) => {
+                    const list = Array.isArray(data) ? data
+                        : Array.isArray(data?.data?.students) ? data.data.students
+                        : Array.isArray(data?.data) ? data.data
+                        : Array.isArray(data?.students) ? data.students
+                        : Array.isArray(data?.data?.data) ? data.data.data : []
+                        
+                    const count = list.length
+                    if (index === 0) pendingCount = count
+                    else if (index === 1) rejectedCount = count
+                    else if (index === 2) acceptedCount = count
+
+                    list.forEach(item => {
+                        const sid = item.student?.id || item.student_id || item.student?._id || item.id || item._id
+                        if (sid) submittedIds.add(String(sid))
+                    })
+                })
+
+                const unsubmittedCount = Math.max(0, totalStudents - submittedIds.size)
+
+                setTabCounts({
+                    PENDING: pendingCount,
+                    REJECTED: rejectedCount,
+                    ACCEPTED: acceptedCount,
+                    UNSUBMITTED: unsubmittedCount
+                })
+            } catch (err) {
+                console.error("Error fetching tab counts:", err)
+            }
+        }
+        
+        fetchCounts()
+    }, [groupId, homeworkId, token, activeTab]) // Har safar tab o'zgarganda (baho qo'yilganda) yangilanadi
 
     useEffect(() => {
         fetchResults()
@@ -124,25 +193,51 @@ export default function GroupHomeworkResults() {
                 console.log("📦 RAW API JAVOBI (" + activeTab + "):", data)
                 
                 // O'zgaruvchilar tuzilishini har tomonlama tekshirish
+                let list = []
                 if (Array.isArray(data)) {
-                    setResults(data)
+                    list = data
                 } else if (data.data?.students && Array.isArray(data.data.students)) {
-                    setResults(data.data.students)
+                    list = data.data.students
                 } else if (data.data?.results && Array.isArray(data.data.results)) {
-                    setResults(data.data.results)
+                    list = data.data.results
                 } else if (data.data && Array.isArray(data.data)) {
-                    setResults(data.data)
+                    list = data.data
                 } else if (data.students && Array.isArray(data.students)) {
-                    setResults(data.students)
+                    list = data.students
                 } else if (data.results && Array.isArray(data.results)) {
-                    setResults(data.results)
+                    list = data.results
                 } else if (data.data?.data && Array.isArray(data.data.data)) {
-                    setResults(data.data.data)
+                    list = data.data.data
                 } else if (data.items && Array.isArray(data.items)) {
-                    setResults(data.items)
+                    list = data.items
                 } else {
-                    setResults([])
                     console.log("❌ Natija topilmadi yoki tuzilma kutilganidek emas!", data)
+                }
+
+                // ACCEPTED yoki REJECTED bo'lsa — har bir o'quvchining ballini individual endpoint dan olamiz
+                if ((activeTab === 'ACCEPTED' || activeTab === 'REJECTED') && list.length > 0) {
+                    const gradePromises = list.map(async (item) => {
+                        const sid = item.student?.id || item.student?._id || item.id || item._id
+                        if (!sid) return item
+                        try {
+                            const res = await fetch(
+                                `${API_URL}/group/${groupId}/homework/${homeworkId}/result/${sid}`,
+                                { headers: { 'Authorization': `Bearer ${tok}` } }
+                            )
+                            if (!res.ok) return item
+                            const d = await res.json()
+                            const detail = d?.data || d
+                            console.log("📊 Individual natija:", detail)
+                            const grade = detail.grade ?? detail.score ?? detail.ball ?? detail.point ?? detail.mark ?? detail.check?.grade ?? detail.homework_check?.grade ?? null
+                            return { ...item, _fetchedGrade: grade }
+                        } catch {
+                            return item
+                        }
+                    })
+                    const listWithGrades = await Promise.all(gradePromises)
+                    setResults(listWithGrades)
+                } else {
+                    setResults(list)
                 }
             }
         } catch (err) {
@@ -225,9 +320,9 @@ export default function GroupHomeworkResults() {
                                         }`}
                                     >
                                         {tab.label}
-                                        {activeTab === tab.id && (
+                                        {tabCounts[tab.id] > 0 && (
                                             <span className="bg-[#f0ab00] text-white text-[11px] font-[700] px-[8px] py-[2px] rounded-full">
-                                                {results.length}
+                                                {tabCounts[tab.id]}
                                             </span>
                                         )}
                                     </button>
@@ -252,6 +347,9 @@ export default function GroupHomeworkResults() {
                                             <tr className="border-b border-gray-200">
                                                 <th className="px-[20px] py-[16px] text-left text-gray-500 font-[600] text-[13px]">O'quvchi ismi</th>
                                                 <th className="px-[20px] py-[16px] text-left text-gray-500 font-[600] text-[13px]">Uyga vazifa jo'natilgan vaqt</th>
+                                                {(activeTab === 'ACCEPTED' || activeTab === 'REJECTED') && (
+                                                    <th className="px-[20px] py-[16px] text-left text-gray-500 font-[600] text-[13px]">Ball</th>
+                                                )}
                                                 {activeTab !== 'UNSUBMITTED' && (
                                                     <th className="px-[20px] py-[16px] w-[40px]"></th>
                                                 )}
@@ -263,17 +361,21 @@ export default function GroupHomeworkResults() {
                                                     (`${result.student?.first_name || ''} ${result.student?.last_name || ''}`).trim() ||
                                                     result.student?.name ||
                                                     result.name || result.full_name || "Noma'lum o'quvchi"
+                                                console.log("🎯 Result obyekti (ball qidirish):", JSON.stringify(result, null, 2))
+                                                const grade = result._fetchedGrade ?? result.grade ?? result.score ?? result.ball ?? result.point ?? result.mark ?? result.rating ?? result.check?.grade ?? result.homework_check?.grade ?? result.result?.grade ?? result.homework_answer?.grade ?? null
                                                 const base = location.pathname.includes('/dashboard') ? '/dashboard' : '/classes'
                                                 return (
                                                 <tr
                                                     key={result.id || index}
                                                     className={`border-b border-gray-100 last:border-0 transition-colors ${
-                                                        activeTab === 'UNSUBMITTED'
+                                                        activeTab === 'UNSUBMITTED' || activeTab === 'ACCEPTED' || activeTab === 'REJECTED'
                                                             ? 'text-gray-400 cursor-default'
                                                             : 'hover:bg-indigo-50/60 cursor-pointer'
                                                     }`}
                                                     onClick={() => {
                                                         if (activeTab === 'UNSUBMITTED') return
+                                                        if (activeTab === 'ACCEPTED') return
+                                                        if (activeTab === 'REJECTED') return
                                                         // ID ni to'g'ri topamiz - student ichidan yoki tashqaridan
                                                         const targetStudentId =
                                                             result.student?.id ||
@@ -328,6 +430,21 @@ export default function GroupHomeworkResults() {
                                                     <td className="px-[20px] py-[20px] text-gray-500 font-[500] text-[14px]">
                                                         {formatDateTime(result.created_at || result.createdAt || result.submitted_at || result.submittedAt)}
                                                     </td>
+                                                    {(activeTab === 'ACCEPTED' || activeTab === 'REJECTED') && (
+                                                        <td className="px-[20px] py-[20px]">
+                                                            {grade !== null ? (
+                                                                <span className={`inline-flex items-center px-[12px] py-[4px] rounded-full text-[13px] font-[700] ${
+                                                                    grade >= 60
+                                                                        ? 'bg-green-50 text-green-600 border border-green-200'
+                                                                        : 'bg-red-50 text-red-500 border border-red-200'
+                                                                }`}>
+                                                                    {grade}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-gray-300 text-[13px]">—</span>
+                                                            )}
+                                                        </td>
+                                                    )}
                                                     {activeTab !== 'UNSUBMITTED' && (
                                                         <td className="px-[20px] py-[20px]">
                                                             <div className="flex items-center gap-[6px] text-indigo-400 opacity-0 group-hover:opacity-100">
