@@ -59,9 +59,32 @@ export default function Login() {
                 // Muvaffaqiyatli xabarni ko'rsatish
                 setSuccessMessage("Siz muvaffaqiyatli kirdingiz!")
                 
-                // Biroz kutib (toast ko'rinishi uchun) keyin o'tish
+                // Role ni aniqlash (Token payload yoki API javobidan)
+                let userRole = data.role || (data.user && data.user.role) || data.roleName;
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    userRole = userRole || payload.role || payload.user_role || payload.roleName || payload.type || (payload.roles && payload.roles[0]);
+                    if (userRole) {
+                        localStorage.setItem("role", userRole);
+                    }
+                } catch (e) {
+                    console.error("Tokenni o'qishda xatolik:", e);
+                }
+                
                 setTimeout(() => {
-                    navigate("/dashboard")
+                    const roleStr = String(userRole || "").toLowerCase();
+                    // O'quvchi roliga tekshirish
+                    if (roleStr.includes("student") || roleStr.includes("pupil") || roleStr.includes("oquvchi") || roleStr === "user") {
+                        navigate("/student/home");
+                    } 
+                    // O'qituvchi yoki Admin roliga tekshirish
+                    else if (roleStr.includes("admin") || roleStr.includes("teacher") || roleStr.includes("tutor") || roleStr.includes("super")) {
+                        navigate("/dashboard");
+                    } 
+                    // Agar role topilmasa, default o'qituvchi paneli (yoki avvalgi holat)
+                    else {
+                        navigate("/dashboard");
+                    }
                 }, 1200)
             } else {
                 setError(data.message || "Telefon yoki parol noto'g'ri!")
