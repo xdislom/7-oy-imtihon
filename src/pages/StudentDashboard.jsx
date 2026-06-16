@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StudentSidebar from '../components/StudentSidebar';
 import StudentHeader from '../components/StudentHeader';
@@ -9,9 +9,28 @@ export default function StudentDashboard() {
     const [selectedGroupForModal, setSelectedGroupForModal] = useState(null);
     const navigate = useNavigate();
 
-    const groups = [
-        { id: 1, name: 'n105', direction: 'Backend', teacher: '4', startDate: '2026 M05 1' }
-    ];
+    const [groups, setGroups] = useState([]);
+    const [loadingGroups, setLoadingGroups] = useState(true);
+
+    useEffect(() => {
+        const fetchGroups = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await fetch('https://najot-edu.softwareengineer.uz/api/v1/students/my/groups', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const resData = await response.json();
+                if (response.ok) {
+                    setGroups(resData.data || resData || []);
+                }
+            } catch (error) {
+                console.error("Error fetching groups:", error);
+            } finally {
+                setLoadingGroups(false);
+            }
+        };
+        fetchGroups();
+    }, []);
 
     return (
         <div className="w-full bg-[#f8f9fa] min-h-screen font-sans">
@@ -52,29 +71,62 @@ export default function StudentDashboard() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {groups.map((group, index) => (
-                                                <tr 
-                                                    key={group.id} 
-                                                    className="border-b border-gray-50 hover:bg-gray-50/80 transition-colors cursor-pointer"
-                                                    onClick={() => navigate(`/dashboard/my-groups/${group.id}`)}
-                                                >
-                                                    <td className="py-4 px-6 text-gray-700 text-[14px] font-medium">{index + 1}</td>
-                                                    <td className="py-4 px-6 text-gray-600 text-[14px]">{group.name}</td>
-                                                    <td className="py-4 px-6 text-gray-600 text-[14px]">{group.direction}</td>
-                                                    <td className="py-4 px-6">
-                                                        <span 
-                                                            className="inline-flex items-center justify-center w-[30px] h-[30px] rounded-full bg-[#c6a27a] text-white text-[13px] font-bold hover:bg-[#b08d66] transition-colors cursor-pointer"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setSelectedGroupForModal(group);
-                                                            }}
-                                                        >
-                                                            {group.teacher}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-4 px-6 text-gray-600 text-[14px]">{group.startDate}</td>
+                                            {loadingGroups ? (
+                                                <tr>
+                                                    <td colSpan="5" className="py-8 text-center text-gray-500">Yuklanmoqda...</td>
                                                 </tr>
-                                            ))}
+                                            ) : groups.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="5" className="py-8 text-center text-gray-500">Guruhlar topilmadi</td>
+                                                </tr>
+                                            ) : (
+                                                groups.map((item, index) => {
+                                                    const actualGroup = item.group || item;
+                                                    const nameDisplay = actualGroup.name || actualGroup.title || actualGroup.group_name || "Noma'lum guruh";
+                                                    
+                                                    const courseObj = actualGroup.course || actualGroup.subject || actualGroup.direction;
+                                                    const directionDisplay = typeof courseObj === 'string' ? courseObj : (courseObj?.name || courseObj?.title || 'Noma\'lum');
+                                                    
+                                                    const teacherObj = actualGroup.teacher || actualGroup.mentor || actualGroup.teachers?.[0];
+                                                    let teacherDisplay = '?';
+                                                    if (typeof teacherObj === 'string' && teacherObj.length > 0) {
+                                                        teacherDisplay = teacherObj[0];
+                                                    } else if (teacherObj?.first_name) {
+                                                        teacherDisplay = teacherObj.first_name[0];
+                                                    } else if (teacherObj?.name) {
+                                                        teacherDisplay = teacherObj.name[0];
+                                                    } else if (actualGroup.teacher_name) {
+                                                        teacherDisplay = actualGroup.teacher_name[0];
+                                                    }
+                                                    
+                                                    const rawDate = actualGroup.start_date || actualGroup.startDate || actualGroup.begin_date || actualGroup.created_at;
+                                                    const startDateDisplay = rawDate ? new Date(rawDate).toLocaleDateString() : 'Noma\'lum';
+                                                    
+                                                    return (
+                                                        <tr 
+                                                            key={actualGroup.id || item.id || index} 
+                                                            className="border-b border-gray-50 hover:bg-gray-50/80 transition-colors cursor-pointer"
+                                                            onClick={() => navigate(`/dashboard/my-groups/${actualGroup.id || item.id}`)}
+                                                        >
+                                                            <td className="py-4 px-6 text-gray-700 text-[14px] font-medium">{index + 1}</td>
+                                                            <td className="py-4 px-6 text-gray-600 text-[14px] font-bold">{nameDisplay}</td>
+                                                            <td className="py-4 px-6 text-gray-600 text-[14px]">{directionDisplay}</td>
+                                                            <td className="py-4 px-6">
+                                                                <span 
+                                                                    className="inline-flex items-center justify-center w-[30px] h-[30px] rounded-full bg-[#c6a27a] text-white text-[13px] font-bold hover:bg-[#b08d66] transition-colors cursor-pointer uppercase"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedGroupForModal(actualGroup);
+                                                                    }}
+                                                                >
+                                                                    {teacherDisplay}
+                                                                </span>
+                                                            </td>
+                                                            <td className="py-4 px-6 text-gray-600 text-[14px]">{startDateDisplay}</td>
+                                                        </tr>
+                                                    )
+                                                })
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
