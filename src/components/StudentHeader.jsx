@@ -10,7 +10,7 @@ export default function StudentHeader({ onMenuClick, isSidebarOpen, onSidebarClo
     };
 
     return (
-        <div className="bg-[#f8f9fa] h-[70px] flex items-center justify-between px-6 sticky top-0 z-50">
+        <div className="bg-white h-[70px] flex items-center justify-between px-6 sticky top-0 z-50 border-b border-gray-100">
             <div>
                 <button 
                     onClick={isSidebarOpen ? onSidebarClose : onMenuClick}

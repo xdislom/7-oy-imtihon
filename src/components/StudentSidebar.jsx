@@ -25,7 +25,7 @@ export default function StudentSidebar({ isOpen, onClose }) {
                 />
             )}
             <div className={`
-                fixed md:sticky top-0 left-0 z-[101] h-screen bg-white transition-all duration-300 flex flex-col shrink-0 w-[260px] border-r border-gray-100
+                fixed md:sticky top-0 left-0 z-[101] h-screen bg-white transition-all duration-300 flex flex-col shrink-0 w-[260px]
                 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
             `}>
                 <div className="p-5 flex items-center justify-center md:justify-start">
@@ -39,7 +39,7 @@ export default function StudentSidebar({ isOpen, onClose }) {
                 
                 <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1">
                     {navItems.map((item) => {
-                        const isActive = location.pathname === item.to;
+                        const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
                         return (
                             <NavLink
                                 key={item.to}

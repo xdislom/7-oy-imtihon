@@ -20,8 +20,12 @@ export default function StudentDashboard() {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const resData = await response.json();
+                console.log('📦 Groups RAW API:', JSON.stringify(resData, null, 2));
                 if (response.ok) {
-                    setGroups(resData.data || resData || []);
+                    const list = resData.data || resData || [];
+                    const arr = Array.isArray(list) ? list : [];
+                    console.log('✅ Groups list:', arr);
+                    setGroups(arr);
                 }
             } catch (error) {
                 console.error("Error fetching groups:", error);
@@ -33,7 +37,7 @@ export default function StudentDashboard() {
     }, []);
 
     return (
-        <div className="w-full bg-[#f8f9fa] min-h-screen font-sans">
+        <div className="w-full bg-gray-100 min-h-screen font-sans">
             <div className="flex">
                 <StudentSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
                 <div className="flex-1 min-h-screen flex flex-col transition-all duration-300 w-full overflow-hidden">
@@ -81,32 +85,22 @@ export default function StudentDashboard() {
                                                 </tr>
                                             ) : (
                                                 groups.map((item, index) => {
-                                                    const actualGroup = item.group || item;
-                                                    const nameDisplay = actualGroup.name || actualGroup.title || actualGroup.group_name || "Noma'lum guruh";
+                                                    // API qaytargan to'g'ri field nomlar
+                                                    const groupId = item.groupId || item.group_id || item.id;
+                                                    const nameDisplay = item.groupName || item.group_name || item.name || "Noma'lum guruh";
+                                                    const directionDisplay = item.courseName || item.course_name || "Noma'lum";
                                                     
-                                                    const courseObj = actualGroup.course || actualGroup.subject || actualGroup.direction;
-                                                    const directionDisplay = typeof courseObj === 'string' ? courseObj : (courseObj?.name || courseObj?.title || 'Noma\'lum');
+                                                    // O'qituvchi countni ko'rsatish
+                                                    let teacherDisplay = String(item.teachersCount || item.teachers?.length || '?');
                                                     
-                                                    const teacherObj = actualGroup.teacher || actualGroup.mentor || actualGroup.teachers?.[0];
-                                                    let teacherDisplay = '?';
-                                                    if (typeof teacherObj === 'string' && teacherObj.length > 0) {
-                                                        teacherDisplay = teacherObj[0];
-                                                    } else if (teacherObj?.first_name) {
-                                                        teacherDisplay = teacherObj.first_name[0];
-                                                    } else if (teacherObj?.name) {
-                                                        teacherDisplay = teacherObj.name[0];
-                                                    } else if (actualGroup.teacher_name) {
-                                                        teacherDisplay = actualGroup.teacher_name[0];
-                                                    }
-                                                    
-                                                    const rawDate = actualGroup.start_date || actualGroup.startDate || actualGroup.begin_date || actualGroup.created_at;
-                                                    const startDateDisplay = rawDate ? new Date(rawDate).toLocaleDateString() : 'Noma\'lum';
+                                                    const rawDate = item.startDate || item.start_date;
+                                                    const startDateDisplay = rawDate ? new Date(rawDate).toLocaleDateString() : "Noma'lum";
                                                     
                                                     return (
                                                         <tr 
-                                                            key={actualGroup.id || item.id || index} 
+                                                            key={groupId || index} 
                                                             className="border-b border-gray-50 hover:bg-gray-50/80 transition-colors cursor-pointer"
-                                                            onClick={() => navigate(`/dashboard/my-groups/${actualGroup.id || item.id}`)}
+                                                            onClick={() => navigate(`/dashboard/my-groups/${groupId}`)}
                                                         >
                                                             <td className="py-4 px-6 text-gray-700 text-[14px] font-medium">{index + 1}</td>
                                                             <td className="py-4 px-6 text-gray-600 text-[14px] font-bold">{nameDisplay}</td>
@@ -116,7 +110,7 @@ export default function StudentDashboard() {
                                                                     className="inline-flex items-center justify-center w-[30px] h-[30px] rounded-full bg-[#c6a27a] text-white text-[13px] font-bold hover:bg-[#b08d66] transition-colors cursor-pointer uppercase"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        setSelectedGroupForModal(actualGroup);
+                                                                        setSelectedGroupForModal(item);
                                                                     }}
                                                                 >
                                                                     {teacherDisplay}
@@ -149,7 +143,7 @@ export default function StudentDashboard() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h2 className="text-[22px] font-bold text-gray-800 mb-1">
-                            {selectedGroupForModal.name.split(' ').pop().toLowerCase()}
+                            {selectedGroupForModal.groupName || selectedGroupForModal.name || "Guruh"}
                         </h2>
                         <p className="text-[15px] text-gray-500 mb-8">Faol</p>
                         
@@ -164,19 +158,33 @@ export default function StudentDashboard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {[
-                                        { id: 1, name: 'Mohirbek', role: 'TEACHER', days: 'Se, Pa, Sha', time: '16:00 - 18:00' },
-                                        { id: 2, name: 'Azizbek', role: 'TEACHER', days: 'Se, Pa, Sha', time: '16:00 - 18:00' },
-                                        { id: 3, name: 'Nosirxon', role: 'TEACHER', days: 'Se, Pa, Sha', time: '16:00 - 18:00' },
-                                        { id: 4, name: 'Raxmonbergan', role: 'TEACHER', days: 'Se, Pa, Sha', time: '16:00 - 18:00' },
-                                    ].map((teacher, idx, arr) => (
-                                        <tr key={teacher.id} className={`${idx !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                                            <td className="py-4 px-5 text-[14px] text-gray-800 font-medium">{teacher.name}</td>
-                                            <td className="py-4 px-5 text-[14px] text-gray-800">{teacher.role}</td>
-                                            <td className="py-4 px-5 text-[14px] text-gray-800">{teacher.days}</td>
-                                            <td className="py-4 px-5 text-[14px] text-gray-800">{teacher.time}</td>
+                                    {(selectedGroupForModal.teachers || []).map((teacher, idx, arr) => {
+                                        const dayMap = {
+                                            "MONDAY": "Du", "TUESDAY": "Se", "WEDNESDAY": "Ch",
+                                            "THURSDAY": "Pa", "FRIDAY": "Ju", "SATURDAY": "Sha", "SUNDAY": "Yak"
+                                        };
+                                        const daysStr = Array.isArray(teacher.week_day) 
+                                            ? teacher.week_day.map(d => dayMap[d] || d).join(', ')
+                                            : teacher.week_day || 'Noma\'lum';
+                                            
+                                        const timeStr = teacher.start_time 
+                                            ? `${teacher.start_time}` + (teacher.duration_hours ? ` (${teacher.duration_hours} soat)` : '')
+                                            : 'Noma\'lum';
+
+                                        return (
+                                            <tr key={idx} className={`${idx !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                                                <td className="py-4 px-5 text-[14px] text-gray-800 font-medium">{teacher.full_name || teacher.name || "Noma'lum"}</td>
+                                                <td className="py-4 px-5 text-[14px] text-gray-800">{teacher.role || 'TEACHER'}</td>
+                                                <td className="py-4 px-5 text-[14px] text-gray-800">{daysStr}</td>
+                                                <td className="py-4 px-5 text-[14px] text-gray-800">{timeStr}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {(!selectedGroupForModal.teachers || selectedGroupForModal.teachers.length === 0) && (
+                                        <tr>
+                                            <td colSpan="4" className="py-4 px-5 text-[14px] text-gray-500 text-center">O'qituvchilar topilmadi</td>
                                         </tr>
-                                    ))}
+                                    )}
                                 </tbody>
                             </table>
                         </div>
