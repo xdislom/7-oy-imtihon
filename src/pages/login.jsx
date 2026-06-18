@@ -80,7 +80,7 @@ export default function Login() {
                 if (!token) { setError("Token topilmadi. Iltimos, qayta urinib ko'ring!"); return }
                 localStorage.setItem("token", token)
                 setSuccessMessage("Siz muvaffaqiyatli kirdingiz!")
-                let userRole = data.role || (data.user && data.user.role) || data.roleName;
+                let userRole = data.role || (data.user && data.user.role) || data.roleName || data.user_role;
                 try {
                     const payload = JSON.parse(atob(token.split('.')[1]));
                     userRole = userRole || payload.role || payload.user_role || payload.roleName || payload.type || (payload.roles && payload.roles[0]);
@@ -90,6 +90,8 @@ export default function Login() {
                     const roleStr = String(userRole || "").toLowerCase();
                     if (roleStr.includes("student") || roleStr.includes("pupil") || roleStr === "user") {
                         navigate("/student/home");
+                    } else if (roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi")) {
+                        navigate("/dashboard/groups");
                     } else {
                         navigate("/dashboard");
                     }
@@ -264,7 +266,7 @@ export default function Login() {
                             <button
                                 type="button"
                                 onClick={() => { setForgotModal(true); setOtpError("") }}
-                                className="text-[13px] text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                                className="text-[13px] text-gray-500  hover:underline transition-colors"
                             >
                                 Parolni unutdingizmi?
                             </button>

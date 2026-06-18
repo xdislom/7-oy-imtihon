@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Sidebar from "../components/Sidebar"
+import TeacherSidebar from "../components/TeacherSidebar"
 import Header from "../components/Header"
 
 export default function GroupExamDetail() {
@@ -34,10 +35,17 @@ export default function GroupExamDetail() {
         { id: 9, name: "Muxammadaziz Rafiqjonov", deadline: "-" }
     ]
 
+    const roleStr = String(localStorage.getItem("role") || "").toLowerCase()
+    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi")
+
     return (
-        <div className="w-full bg-[#f4f4f5] min-h-screen">
+        <div className="w-full bg-[#f8fafc] min-h-screen">
             <div className="flex">
-                <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                {isTeacher ? (
+                    <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                ) : (
+                    <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                )}
                 <div className="w-full min-h-screen flex flex-col px-[20px] md:px-[40px] pb-[40px]">
                     <Header onMenuClick={() => setIsSidebarOpen(true)} />
 

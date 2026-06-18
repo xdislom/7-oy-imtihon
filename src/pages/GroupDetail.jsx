@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import Sidebar from "../components/Sidebar"
+import TeacherSidebar from "../components/TeacherSidebar"
 import Header from "../components/Header"
 
 const API_URL = "https://najot-edu.softwareengineer.uz/api/v1"
@@ -242,7 +243,7 @@ const normalizeGroup = (group) => ({
     studentCount: getCount(group.students || group.student_count || group.students_count),
     maxStudent: group.max_student || group.maxStudent || group.room?.capacity || group.capacity || 0,
     startTime: group.start_time || group.startTime || group.time || group.lesson_time || "Noma'lum",
-    startDate: group.start_date || group.startDate || group.begin_date || group.beginDate || group.created_at,
+    startDate: group.start_date || group.startDate || group.begin_date || group.beginDate || group.created_at || group.createdAt || group.opened_date || group.openedDate || new Date().toISOString(),
     endDate: group.end_date || group.endDate || group.finish_date || group.finishDate,
     weekDay: formatDays(group.week_day || group.weekDay || group.days || group.lesson_days || group.week_days),
     description: group.description || ""
@@ -307,7 +308,7 @@ const formatDateOnly = (value) => {
 }
 
 const formatScheduleRange = (schedule, group) => {
-    const start = schedule.start_date || schedule.startDate || schedule.from_date || schedule.fromDate || schedule.start || schedule.group?.start_date || schedule.group?.startDate || group?.startDate
+    const start = schedule.start_date || schedule.startDate || schedule.from_date || schedule.fromDate || schedule.start || schedule.group?.start_date || schedule.group?.startDate || group?.startDate || group?.start_date || group?.created_at || group?.createdAt || new Date().toISOString()
     const end = schedule.end_date || schedule.endDate || schedule.to_date || schedule.toDate || schedule.end || schedule.group?.end_date || schedule.group?.endDate || group?.endDate
     if (!start && !end) return "Noma'lum"
     if (!end) {
@@ -381,7 +382,11 @@ const getScheduleDatesFromApi = (schedule, group) => {
         schedule.start ||
         schedule.group?.start_date ||
         schedule.group?.startDate ||
-        group?.startDate
+        group?.startDate ||
+        group?.start_date ||
+        group?.created_at ||
+        group?.createdAt ||
+        new Date().toISOString()
     )
     const end = parseScheduleDate(
         schedule.end_date ||
@@ -506,6 +511,9 @@ export default function GroupDetail() {
     const navigate = useNavigate()
     const location = useLocation()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    const roleStr = String(localStorage.getItem("role") || "").toLowerCase();
+    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi");
+
     const [group, setGroup] = useState(null)
     const [schedules, setSchedules] = useState([])
     const [lessons, setLessons] = useState([])
@@ -878,18 +886,36 @@ export default function GroupDetail() {
                 return
             }
 
+            let finalGroupData = null;
             if (!groupResponse.ok) {
-                throw new Error(groupData.message || "Guruh ma'lumotlarini olishda xatolik")
+                if (isTeacher) {
+                    const savedGroup = JSON.parse(sessionStorage.getItem("selectedGroup") || "null")
+                    if (savedGroup && String(savedGroup.id) === String(groupId)) {
+                        finalGroupData = normalizeGroup(savedGroup)
+                    } else {
+                        throw new Error(groupData.message || "Guruh ma'lumotlarini olishda xatolik")
+                    }
+                } else {
+                    throw new Error(groupData.message || "Guruh ma'lumotlarini olishda xatolik")
+                }
+            } else {
+                const apiGroup = normalizeGroup(findObject(groupData));
+                const savedGroup = JSON.parse(sessionStorage.getItem("selectedGroup") || "null")
+                const fallbackGroup = savedGroup && String(savedGroup.id) === String(groupId) ? normalizeGroup(savedGroup) : null
+                finalGroupData = mergeGroupData(apiGroup, fallbackGroup)
             }
 
+            let finalSchedules = [];
             if (!schedulesResponse.ok) {
-                throw new Error(schedulesData.message || "Dars jadvalini olishda xatolik")
+                if (!isTeacher) {
+                    throw new Error(schedulesData.message || "Dars jadvalini olishda xatolik")
+                }
+            } else {
+                finalSchedules = normalizeLessons(schedulesData)
             }
 
-            const savedGroup = JSON.parse(sessionStorage.getItem("selectedGroup") || "null")
-            const fallbackGroup = savedGroup && String(savedGroup.id) === String(groupId) ? normalizeGroup(savedGroup) : null
-            setGroup(mergeGroupData(normalizeGroup(findObject(groupData)), fallbackGroup))
-            setSchedules(normalizeLessons(schedulesData))
+            setGroup(finalGroupData)
+            setSchedules(finalSchedules)
 
             // Homework ma'lumotlarini alohida yuklash
             fetchHomework(headers)
@@ -918,7 +944,7 @@ export default function GroupDetail() {
                 // Har bir uyga vazifa uchun ACCEPTED va PENDING sonlarini API dan olamiz
                 const enriched = await Promise.all(groupHomeworks.map(async (hw) => {
                     try {
-                        const actualHwId = (hw.homework && hw.homework.length > 0) ? hw.homework[0].id : hw.id;
+                        const actualHwId = Array.isArray(hw.homework) && hw.homework.length > 0 ? hw.homework[0].id : (hw.homework?.id || hw.homeworkId || hw.id);
                         const [pendingRes, acceptedRes] = await Promise.all([
                             fetch(`${API_URL}/group/${groupId}/homework/${actualHwId}/results?status=PENDING`, { headers }),
                             fetch(`${API_URL}/group/${groupId}/homework/${actualHwId}/results?status=ACCEPTED`, { headers }),
@@ -1069,7 +1095,7 @@ export default function GroupDetail() {
     }, [activeLessonsTab, activeTab])
 
     useEffect(() => {
-        if (location.pathname.startsWith("/dashboard/groups/")) {
+        if (location.pathname.startsWith("/dashboard/groups/") && !isTeacher) {
             navigate(`/classes/groups/${groupId}`, { replace: true })
             return
         }
@@ -1121,17 +1147,22 @@ export default function GroupDetail() {
     }, [scheduleMonths])
 
     console.log(group)
+
     return (
         <div className="w-full bg-gray-50 min-h-screen">
             <div className="flex">
-                <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                {isTeacher ? (
+                    <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                ) : (
+                    <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                )}
                 <div className="w-full min-h-screen flex flex-col px-[20px] md:px-[40px] pb-[40px]">
                     <Header onMenuClick={() => setIsSidebarOpen(true)} />
 
                     <div className="flex items-center justify-between mt-[28px] mb-[28px]">
                         <div className="flex items-center gap-[18px]">
                             <button
-                                onClick={() => navigate("/classes")}
+                                onClick={() => navigate(-1)}
                                 className="w-[38px] h-[38px] flex items-center justify-center rounded-[10px] text-gray-500 hover:bg-white hover:text-purple-600 transition-colors"
                             >
                                 <i className="fa-solid fa-chevron-left"></i>
@@ -1659,7 +1690,7 @@ export default function GroupDetail() {
                                                     </thead>
                                                     <tbody>
                                                         {lessons.map((lesson, index) => {
-                                                            const actualHomeworkId = (lesson.homework && lesson.homework.length > 0) ? lesson.homework[0].id : lesson.id;
+                                                            const actualHomeworkId = Array.isArray(lesson.homework) && lesson.homework.length > 0 ? lesson.homework[0].id : (lesson.homework?.id || lesson.homeworkId || lesson.id);
                                                             return (
                                                                 <tr 
                                                                     key={lesson.id || index} 
@@ -1684,7 +1715,7 @@ export default function GroupDetail() {
                                                                     })()}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
-                                                                    {groupStudentsCount || groupStudents.length || 0}
+                                                                    {groupStudentsCount || groupStudents.length || group?.studentCount || group?.students?.length || 0}
                                                                 </td>
                                                                 <td className="px-[20px] py-[20px] text-gray-900 font-[600] text-[14px]">
                                                                     {lesson.homeworkPending ?? lesson.pending_count ?? lesson.pendingCount ?? 0}

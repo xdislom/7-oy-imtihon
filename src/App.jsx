@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from "./pages/login"
 import StudentDashboard from "./pages/StudentDashboard"
 import StudentGroupDetail from "./pages/StudentGroupDetail"
+import StudentLessonDetail from "./pages/StudentLessonDetail"
 import StudentHome from "./pages/StudentHome"
 import StudentPayments from "./pages/StudentPayments"
 import StudentStats from "./pages/StudentStats"
@@ -22,6 +23,9 @@ import Gifts from "./pages/Gifts"
 import Settings from "./pages/Settings"
 import GroupHomeworkResults from "./pages/GroupHomeworkResults"
 import HomeworkCheck from "./pages/HomeworkCheck"
+import TeacherGroups from "./pages/TeacherGroups"
+import TeacherPlannedGroups from "./pages/TeacherPlannedGroups"
+import TeacherProfile from "./pages/TeacherProfile"
 
 // Token yo'q bo'lsa Login ga qaytaradi
 const PrivateRoute = ({ children }) => {
@@ -39,8 +43,12 @@ function App() {
             <Routes>
                 <Route path="/" element={<Login />} />
                 <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+                <Route path="/dashboard/groups" element={<PrivateRoute><TeacherGroups /></PrivateRoute>} />
+                <Route path="/dashboard/planned-groups" element={<PrivateRoute><TeacherPlannedGroups /></PrivateRoute>} />
+                <Route path="/dashboard/profile" element={<PrivateRoute><TeacherProfile /></PrivateRoute>} />
                 <Route path="/dashboard/my-groups" element={<PrivateRoute><StudentDashboard /></PrivateRoute>} />
                 <Route path="/dashboard/my-groups/:id" element={<PrivateRoute><StudentGroupDetail /></PrivateRoute>} />
+                <Route path="/dashboard/my-groups/:groupId/lessons/:lessonId" element={<PrivateRoute><StudentLessonDetail /></PrivateRoute>} />
                 <Route path="/student/home" element={<PrivateRoute><StudentHome /></PrivateRoute>} />
                 <Route path="/student/payments" element={<PrivateRoute><StudentPayments /></PrivateRoute>} />
                 <Route path="/student/stats" element={<PrivateRoute><StudentStats /></PrivateRoute>} />

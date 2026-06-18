@@ -30,9 +30,9 @@ export default function StudentSidebar({ isOpen, onClose }) {
             `}>
                 <div className="p-5 flex items-center justify-center md:justify-start">
                     <div className="flex items-center gap-2 relative">
-                        <span className="font-bold text-[18px] text-gray-800 tracking-wider">NAJOT</span>
+                        <span className="font-bold text-[18px] text-gray-800 tracking-wider">XD</span>
                         <img src={najotLogo} alt="logo" className="w-[30px]" />
-                        <span className="font-bold text-[18px] text-gray-800 tracking-wider">TA'LIM</span>
+                        <span className="font-bold text-[18px] text-gray-800 tracking-wider">EDU</span>
                         <span className="absolute -top-2 -right-8 bg-yellow-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-[6px]">Beta</span>
                     </div>
                 </div>

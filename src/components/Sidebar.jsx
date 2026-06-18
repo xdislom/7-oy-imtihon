@@ -81,7 +81,7 @@ export default function Sidebar({ isOpen, onClose }) {
                         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
                             <div className="flex items-center">
                                 <img src={najot} alt="najot" className="w-[40px]" />
-                                {!isCollapsed && <li className="text-[24px] text-purple-500 font-[500] pt-[7px] ml-2">NajotEdu</li>}
+                                {!isCollapsed && <li className="text-[24px] text-purple-500 font-[500] pt-[7px] ml-2">XD_EDU</li>}
                             </div>
                             {!isCollapsed && (
                                 <IconButton onClick={onClose} className="md:!hidden">
@@ -112,7 +112,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                     } ${item.to === "/settings" && isSubmenuOpen ? "bg-purple-600 text-white" : ""}`
                                 }
                             >
-                                <item.Icon sx={{ fontSize: 24 }} className={isCollapsed ? '' : ''} />
+                                <item.Icon sx={{ fontSize: 24 }} />
                                 {!isCollapsed && item.label}
                             </NavLink>
                         ))}

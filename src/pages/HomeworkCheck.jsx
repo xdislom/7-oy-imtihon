@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import Sidebar from "../components/Sidebar"
+import TeacherSidebar from "../components/TeacherSidebar"
 import Header from "../components/Header"
 
 const API_URL = "https://najot-edu.softwareengineer.uz/api/v1"
@@ -201,10 +202,17 @@ export default function HomeworkCheck() {
     }
     const badge = statusBadge[activeTab] || statusBadge.PENDING
 
+    const roleStr = String(localStorage.getItem("role") || "").toLowerCase()
+    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi")
+
     return (
         <div className="w-full bg-[#f3f4f6] min-h-screen">
             <div className="flex">
-                <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                {isTeacher ? (
+                    <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                ) : (
+                    <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                )}
                 <div className="w-full min-h-screen flex flex-col px-[20px] md:px-[40px] pb-[40px]">
                     <Header onMenuClick={() => setIsSidebarOpen(true)} />
 
@@ -447,7 +455,7 @@ export default function HomeworkCheck() {
                                 {/* Action buttons */}
                                 <div className="flex justify-end gap-[12px] mt-[4px]">
                                     <button
-                                        onClick={goBack}
+                                        onClick={() => navigate(-1)}
                                         className="px-[28px] py-[12px] rounded-[12px] border border-gray-200 bg-white text-gray-600 font-[600] text-[14px] hover:bg-gray-50 transition-colors"
                                     >
                                         Bekor qilish

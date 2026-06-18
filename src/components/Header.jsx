@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { IconButton, Tooltip, Avatar, Accordion, AccordionSummary, AccordionDetails, Switch } from '@mui/material';
+import { IconButton, Tooltip, Switch } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import najot from "../assets/logo.jpg";
 
 const MaterialUISwitch = styled(Switch)(({ theme }) => ({
@@ -166,7 +164,7 @@ export default function Header({ onMenuClick }) {
                             <i className="fa-regular fa-bell text-[20px]"></i>
                         </IconButton>
                     </Tooltip>
-                     <IconButton sx={{ color: '#4b5563', p: 0.5 }} onClick={toggleDarkMode}>
+                    <IconButton sx={{ color: '#4b5563', p: 0.5 }} onClick={toggleDarkMode}>
                         <i className={`fa-regular fa-${isDark ? 'sun' : 'moon'} text-[20px] ${isDark ? 'text-amber-500' : ''}`}></i>
                     </IconButton>
                     <div 

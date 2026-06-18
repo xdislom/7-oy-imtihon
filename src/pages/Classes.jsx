@@ -871,7 +871,7 @@ export default function Groups() {
                                 <tbody className="text-[14px]">
                                     {loading && (
                                         <tr>
-                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
+                                            <td colSpan="9" className="py-8 px-6 text-center text-gray-400 font-semibold bg-white rounded-[12px]">
                                                 Guruhlar yuklanmoqda...
                                             </td>
                                         </tr>
@@ -879,7 +879,7 @@ export default function Groups() {
 
                                     {!loading && error && (
                                         <tr>
-                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-red-500 font-[600]">
+                                            <td colSpan="9" className="py-8 px-6 text-center text-red-500 font-semibold bg-white rounded-[12px]">
                                                 {error}
                                             </td>
                                         </tr>
@@ -887,7 +887,7 @@ export default function Groups() {
 
                                     {!loading && !error && groups.length === 0 && (
                                         <tr>
-                                            <td colSpan="9" className="py-[28px] px-[24px] text-center text-gray-400 font-[600]">
+                                            <td colSpan="9" className="py-8 px-6 text-center text-gray-400 font-semibold bg-white rounded-[12px]">
                                                 Guruhlar topilmadi
                                             </td>
                                         </tr>
@@ -936,7 +936,7 @@ export default function Groups() {
                                                 e.stopPropagation();
                                                 setActiveMenu(activeMenu === group.id ? null : group.id);
                                             }}>
-                                                <i className="fa-solid fa-ellipsis-vertical px-[8px] py-[4px] text-gray-300 cursor-pointer hover:text-gray-600 transition-colors"></i>
+                                                <i className="fa-solid fa-ellipsis-vertical px-2 py-1 text-gray-400 hover:text-gray-600 transition-colors"></i>
                                                 
                                                 {activeMenu === group.id && (
                                                     <div className="absolute right-[30px] top-[40px] bg-white shadow-lg border border-gray-100 rounded-[12px] z-[50] py-[8px] min-w-[160px] animate-fade-in">

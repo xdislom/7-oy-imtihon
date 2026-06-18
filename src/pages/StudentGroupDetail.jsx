@@ -212,7 +212,11 @@ export default function StudentGroupDetail() {
                                             filteredLessons.map((lesson, index) => {
                                                 const hwStatus = getHwStatus(lesson);
                                                 return (
-                                                    <tr key={lesson.id || index} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                                                    <tr 
+                                                        key={lesson.id || index} 
+                                                        onClick={() => navigate(`/dashboard/my-groups/${id}/lessons/${lesson.id}`)}
+                                                        className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                                                    >
                                                         <td className="py-4 px-4 text-gray-700 text-[14px] font-medium">
                                                             {lesson.title || lesson.name || lesson.topic || lesson.subject || `Dars ${index + 1}`}
                                                         </td>

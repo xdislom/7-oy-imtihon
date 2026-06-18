@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import Sidebar from "../components/Sidebar"
 import Header from "../components/Header"
+import Sidebar from "../components/Sidebar"
+import TeacherSidebar from "../components/TeacherSidebar"
 
 const API_URL = "https://najot-edu.softwareengineer.uz/api/v1"
 
@@ -129,15 +130,24 @@ export default function GroupHomeworkResults() {
             
             if (activeTab === "UNSUBMITTED") {
                 // 1. Guruh o'quvchilarini olamiz
-                const studentsRes = await fetch(`${API_URL}/groups/one/students/${groupId}`, {
-                    headers: { 'Authorization': `Bearer ${tok}` }
-                })
-                
-                if (!studentsRes.ok) throw new Error("Guruh o'quvchilarini yuklashda xatolik yuz berdi")
-                const studentsData = await studentsRes.json()
-                const studentsList = Array.isArray(studentsData) ? studentsData 
-                    : Array.isArray(studentsData?.data) ? studentsData.data 
-                    : Array.isArray(studentsData?.data?.data) ? studentsData.data.data : []
+                let studentsList = []
+                try {
+                    const studentsRes = await fetch(`${API_URL}/groups/one/students/${groupId}`, {
+                        headers: { 'Authorization': `Bearer ${tok}` }
+                    })
+                    if (studentsRes.ok) {
+                        const studentsData = await studentsRes.json()
+                        studentsList = Array.isArray(studentsData) ? studentsData 
+                            : Array.isArray(studentsData?.data) ? studentsData.data 
+                            : Array.isArray(studentsData?.data?.data) ? studentsData.data.data : []
+                    } else {
+                        throw new Error("Failed to fetch students from API")
+                    }
+                } catch (err) {
+                    console.warn("API dan o'quvchilarni yuklashda xatolik, localStorage dan olinmoqda:", err)
+                    const savedGroup = JSON.parse(sessionStorage.getItem("selectedGroup") || "{}")
+                    studentsList = savedGroup?.students || savedGroup?.student_list || savedGroup?.studentList || []
+                }
                 
                 // 2. Qolgan uchta status bo'yicha ma'lumotlarni olamiz (Kutayotgan, Qaytarilgan, Qabul qilingan)
                 const statuses = ["PENDING", "REJECTED", "ACCEPTED"]
@@ -165,7 +175,8 @@ export default function GroupHomeworkResults() {
                 })
                 
                 // 4. Barcha o'quvchilardan topshirganlarni olib tashlaymiz
-                const unsubmittedStudents = studentsList
+                const validStudentsList = Array.isArray(studentsList) ? studentsList : []
+                const unsubmittedStudents = validStudentsList
                     .filter(s => !submittedStudentIds.has(String(s.id || s._id)))
                     .map(s => ({
                         id: s.id || s._id,
@@ -186,11 +197,15 @@ export default function GroupHomeworkResults() {
                 })
                 
                 if (!response.ok) {
+                    if (response.status === 404) {
+                        setResults([])
+                        setLoading(false)
+                        return
+                    }
                     throw new Error("Ma'lumotni yuklashda xatolik yuz berdi")
                 }
                 
                 const data = await response.json()
-                console.log("📦 RAW API JAVOBI (" + activeTab + "):", data)
                 
                 // O'zgaruvchilar tuzilishini har tomonlama tekshirish
                 let list = []
@@ -210,8 +225,6 @@ export default function GroupHomeworkResults() {
                     list = data.data.data
                 } else if (data.items && Array.isArray(data.items)) {
                     list = data.items
-                } else {
-                    console.log("❌ Natija topilmadi yoki tuzilma kutilganidek emas!", data)
                 }
 
                 // ACCEPTED yoki REJECTED bo'lsa — har bir o'quvchining ballini individual endpoint dan olamiz
@@ -227,7 +240,6 @@ export default function GroupHomeworkResults() {
                             if (!res.ok) return item
                             const d = await res.json()
                             const detail = d?.data || d
-                            console.log("📊 Individual natija:", detail)
                             const grade = detail.grade ?? detail.score ?? detail.ball ?? detail.point ?? detail.mark ?? detail.check?.grade ?? detail.homework_check?.grade ?? null
                             return { ...item, _fetchedGrade: grade }
                         } catch {
@@ -249,15 +261,6 @@ export default function GroupHomeworkResults() {
         }
     }
 
-    const goBack = () => {
-        // Go back to the group detail page, preserving dashboard or classes route
-        if (location.pathname.includes('/dashboard')) {
-            navigate(`/dashboard/groups/${groupId}`)
-        } else {
-            navigate(`/classes/groups/${groupId}`)
-        }
-    }
-
     const formatDateTime = (value) => {
         if (!value) return "—"
         const date = new Date(value)
@@ -275,17 +278,24 @@ export default function GroupHomeworkResults() {
     const title = lesson.title || lesson.topic || lesson.name || lesson.subject || lesson.description || "Uyga vazifa natijalari"
     const endDate = lesson.end_date || lesson.endDate || lesson.deadline || null
 
+    const roleStr = String(localStorage.getItem("role") || "").toLowerCase()
+    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi")
+
     return (
-        <div className="w-full bg-[#f8fafc] min-h-screen">
+        <div className="w-full bg-gray-50 min-h-screen">
             <div className="flex">
-                <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                {isTeacher ? (
+                    <TeacherSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                ) : (
+                    <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+                )}
                 <div className="w-full min-h-screen flex flex-col px-[20px] md:px-[40px] pb-[40px]">
                     <Header onMenuClick={() => setIsSidebarOpen(true)} />
                     
                     <main className="mt-[28px]">
                         <div className="flex items-center gap-[12px] mb-[24px]">
                         <button 
-                            onClick={goBack}
+                            onClick={() => navigate(-1)}
                             className="w-[32px] h-[32px] sm:w-[40px] sm:h-[40px] flex items-center justify-center rounded-[12px] bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all shadow-sm"
                         >
                             <i className="fa-solid fa-chevron-left text-[13px] sm:text-[14px]"></i>
@@ -368,14 +378,12 @@ export default function GroupHomeworkResults() {
                                                 <tr
                                                     key={result.id || index}
                                                     className={`border-b border-gray-100 last:border-0 transition-colors ${
-                                                        activeTab === 'UNSUBMITTED' || activeTab === 'ACCEPTED' || activeTab === 'REJECTED'
+                                                        activeTab === 'UNSUBMITTED'
                                                             ? 'text-gray-400 cursor-default'
                                                             : 'hover:bg-indigo-50/60 cursor-pointer'
                                                     }`}
                                                     onClick={() => {
                                                         if (activeTab === 'UNSUBMITTED') return
-                                                        if (activeTab === 'ACCEPTED') return
-                                                        if (activeTab === 'REJECTED') return
                                                         // ID ni to'g'ri topamiz - student ichidan yoki tashqaridan
                                                         const targetStudentId =
                                                             result.student?.id ||
