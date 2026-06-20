@@ -51,8 +51,13 @@ export default function Header({ onMenuClick }) {
     const navigate = useNavigate();
     const [selectedLanguage, setSelectedLanguage] = useState("O'zbekcha");
     const [isLangOpen, setIsLangOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const dropdownRef = useRef(null);
+    const profileRef = useRef(null);
     const [isDark, setIsDark] = useState(() => localStorage.getItem("theme") === "dark");
+    
+    const roleStr = String(localStorage.getItem("role") || "student").toUpperCase();
+    const roleLetter = roleStr.charAt(0) || "S";
 
     useEffect(() => {
         if (isDark) {
@@ -72,6 +77,9 @@ export default function Header({ onMenuClick }) {
         function handleClickOutside(event) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsLangOpen(false);
+            }
+            if (profileRef.current && !profileRef.current.contains(event.target)) {
+                setIsProfileOpen(false);
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
@@ -167,12 +175,36 @@ export default function Header({ onMenuClick }) {
                     <IconButton sx={{ color: '#4b5563', p: 0.5 }} onClick={toggleDarkMode}>
                         <i className={`fa-regular fa-${isDark ? 'sun' : 'moon'} text-[20px] ${isDark ? 'text-amber-500' : ''}`}></i>
                     </IconButton>
-                    <div 
-                        onClick={handleLogout}
-                        title="Chiqish (Logout)"
-                        className="w-[42px] h-[42px] bg-[#7c3aed] rounded-full flex items-center justify-center text-white font-[600] text-[18px] shadow-sm cursor-pointer hover:bg-purple-700 hover:scale-105 transition-all"
-                    >
-                        I
+                    
+                    <div className="relative" ref={profileRef}>
+                        <div 
+                            onClick={() => setIsProfileOpen(!isProfileOpen)}
+                            className="w-[42px] h-[42px] bg-[#7c3aed] rounded-full flex items-center justify-center text-white font-[600] text-[18px] shadow-sm cursor-pointer hover:bg-purple-700 transition-colors"
+                        >
+                            {roleLetter}
+                        </div>
+
+                        {isProfileOpen && (
+                            <div className="absolute right-0 mt-3 w-[220px] bg-white border border-gray-100 rounded-[14px] shadow-lg py-2 z-[999] animate-fade-in overflow-hidden">
+                                <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100">
+                                    <div className="w-[36px] h-[36px] rounded-full bg-purple-100 text-purple-600 font-[700] flex items-center justify-center text-[16px]">
+                                        {roleLetter}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[14px] font-[700] text-gray-800 tracking-wide">{roleStr}</span>
+                                    </div>
+                                </div>
+                                <div className="p-2">
+                                    <button 
+                                        onClick={handleLogout}
+                                        className="w-full flex items-center gap-3 px-3 py-2 text-red-500 hover:bg-red-50 rounded-[8px] transition-colors font-[600] text-[14px]"
+                                    >
+                                        <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                                        Chiqish
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

@@ -512,7 +512,7 @@ export default function GroupDetail() {
     const location = useLocation()
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const roleStr = String(localStorage.getItem("role") || "").toLowerCase();
-    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi");
+    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi") || location.pathname.startsWith("/dashboard/groups");
 
     const [group, setGroup] = useState(null)
     const [schedules, setSchedules] = useState([])

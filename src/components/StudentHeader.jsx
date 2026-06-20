@@ -14,7 +14,7 @@ export default function StudentHeader({ onMenuClick, isSidebarOpen, onSidebarClo
             <div>
                 <button 
                     onClick={isSidebarOpen ? onSidebarClose : onMenuClick}
-                    className="w-[42px] h-[36px] rounded-[8px] bg-[#c59c73] flex flex-col items-center justify-center gap-1.5 hover:bg-[#b08d65] transition-colors shadow-sm"
+                    className="md:hidden w-[42px] h-[36px] rounded-[8px] bg-purple-600 flex flex-col items-center justify-center gap-1.5 hover:bg-purple-700 transition-colors shadow-sm"
                 >
                     <div className="w-[20px] h-[2px] bg-white rounded-full"></div>
                     <div className="w-[20px] h-[2px] bg-white rounded-full"></div>

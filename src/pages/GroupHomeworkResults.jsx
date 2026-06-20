@@ -233,8 +233,11 @@ export default function GroupHomeworkResults() {
                         const sid = item.student?.id || item.student?._id || item.id || item._id
                         if (!sid) return item
                         try {
+                            const targetLessonId = lesson?.lesson_id || lesson?.id || location.state?.lesson?.id;
                             const res = await fetch(
-                                `${API_URL}/group/${groupId}/homework/${homeworkId}/result/${sid}`,
+                                targetLessonId 
+                                    ? `${API_URL}/group/${groupId}/lesson/${targetLessonId}/homework/${homeworkId}/student/${sid}`
+                                    : `${API_URL}/group/${groupId}/homework/${homeworkId}/result/${sid}`,
                                 { headers: { 'Authorization': `Bearer ${tok}` } }
                             )
                             if (!res.ok) return item
@@ -279,7 +282,7 @@ export default function GroupHomeworkResults() {
     const endDate = lesson.end_date || lesson.endDate || lesson.deadline || null
 
     const roleStr = String(localStorage.getItem("role") || "").toLowerCase()
-    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi")
+    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi") || location.pathname.startsWith("/dashboard/groups")
 
     return (
         <div className="w-full bg-gray-50 min-h-screen">
@@ -384,17 +387,29 @@ export default function GroupHomeworkResults() {
                                                     }`}
                                                     onClick={() => {
                                                         if (activeTab === 'UNSUBMITTED') return
-                                                        // ID ni to'g'ri topamiz - student ichidan yoki tashqaridan
+                                                        // Student ID ni topamiz (URL uchun)
                                                         const targetStudentId =
                                                             result.student?.id ||
                                                             result.student?._id ||
                                                             result.id ||
                                                             result._id ||
                                                             String(index + 1)
-                                                        console.log("🔗 O'tish:", targetStudentId, "Result:", result)
+                                                        // homework_answer_id ni result ichidan topamiz
+                                                        const homeworkAnswerId =
+                                                            result.homework_answer_id ||
+                                                            result.answer_id ||
+                                                            result.answer?.id ||
+                                                            result.homework_answer?.id ||
+                                                            result.id ||
+                                                            null
+                                                        const enrichedResult = {
+                                                            ...result,
+                                                            homework_answer_id: homeworkAnswerId
+                                                        }
+                                                        console.log("🔗 O'tish:", targetStudentId, "homeworkAnswerId:", homeworkAnswerId)
                                                         navigate(
                                                             `${base}/groups/${groupId}/homework/${homeworkId}/results/${targetStudentId}`,
-                                                            { state: { student: result, lesson, activeTab } }
+                                                            { state: { student: enrichedResult, lesson, activeTab } }
                                                         )
                                                     }}
                                                 >

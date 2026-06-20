@@ -46,18 +46,18 @@ export default function StudentDashboard() {
                     <div className="p-[20px] md:p-[30px] flex-1">
                         <div className="flex gap-6 border-b border-gray-200 mb-6 px-1">
                             <button 
-                                className={`pb-3 px-2 font-bold text-[15px] transition-colors relative ${activeTab === 'faol' ? 'text-[#c6a27a]' : 'text-[#8c94a3] hover:text-gray-600'}`}
+                                className={`pb-3 px-2 font-bold text-[15px] transition-colors relative ${activeTab === 'faol' ? 'text-purple-600' : 'text-[#8c94a3] hover:text-gray-600'}`}
                                 onClick={() => setActiveTab('faol')}
                             >
                                 Faol
-                                {activeTab === 'faol' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#c6a27a]"></div>}
+                                {activeTab === 'faol' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-purple-600"></div>}
                             </button>
                             <button 
-                                className={`pb-3 px-2 font-bold text-[15px] transition-colors relative ${activeTab === 'tugagan' ? 'text-[#c6a27a]' : 'text-[#8c94a3] hover:text-gray-600'}`}
+                                className={`pb-3 px-2 font-bold text-[15px] transition-colors relative ${activeTab === 'tugagan' ? 'text-purple-600' : 'text-[#8c94a3] hover:text-gray-600'}`}
                                 onClick={() => setActiveTab('tugagan')}
                             >
                                 Tugagan
-                                {activeTab === 'tugagan' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#c6a27a]"></div>}
+                                {activeTab === 'tugagan' && <div className="absolute bottom-0 left-0 w-full h-[2px] bg-purple-600"></div>}
                             </button>
                         </div>
 
@@ -107,7 +107,7 @@ export default function StudentDashboard() {
                                                             <td className="py-4 px-6 text-gray-600 text-[14px]">{directionDisplay}</td>
                                                             <td className="py-4 px-6">
                                                                 <span 
-                                                                    className="inline-flex items-center justify-center w-[30px] h-[30px] rounded-full bg-[#c6a27a] text-white text-[13px] font-bold hover:bg-[#b08d66] transition-colors cursor-pointer uppercase"
+                                                                    className="inline-flex items-center justify-center w-[30px] h-[30px] rounded-full bg-purple-600 text-white text-[13px] font-bold hover:bg-purple-700 transition-colors cursor-pointer uppercase"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setSelectedGroupForModal(item);

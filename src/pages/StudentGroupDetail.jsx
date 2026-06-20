@@ -110,7 +110,7 @@ export default function StudentGroupDetail() {
         if (s === 'accepted' || s === 'qabul_qilingan' || s === 'qabul qilingan') return 'Qabul qilingan';
         if (s === 'not_done' || s === 'bajarilmagan') return 'Bajarilmagan';
         if (s === 'not_given' || s === 'berilmagan') return 'Berilmagan';
-        if (s === 'pending' || s === 'kutayotganlar') return 'Kutayotganlar';
+        if (s === 'pending' || s === 'kutayotganlar' || s === 'kutilmoqda') return 'Kutilmoqda';
         return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
     };
 
@@ -141,7 +141,8 @@ export default function StudentGroupDetail() {
             case 'Qabul qilingan': return 'bg-[#50bc5f]';
             case 'Berilmagan': return 'bg-[#7b809a]';
             case 'Bajarilmagan': return 'bg-[#ef4444]';
-            case 'Kutayotganlar': return 'bg-[#6366f1]';
+            case 'Kutilmoqda': return 'bg-[#3b82f6]';
+            case 'Kutayotganlar': return 'bg-[#3b82f6]';
             default: return 'bg-gray-500';
         }
     };
@@ -174,13 +175,14 @@ export default function StudentGroupDetail() {
                                     <select
                                         value={filter}
                                         onChange={(e) => setFilter(e.target.value)}
-                                        className="appearance-none w-full bg-white border border-[#c6a27a] text-gray-700 py-2 px-4 pr-8 rounded-[4px] leading-tight focus:outline-none focus:border-[#c6a27a] font-medium cursor-pointer"
+                                        className="appearance-none w-full bg-white border border-purple-600 text-gray-700 py-2 px-4 pr-8 rounded-[4px] leading-tight focus:outline-none focus:border-purple-600 font-medium cursor-pointer"
                                     >
                                         <option>Barchasi</option>
                                         <option>Qaytarilgan</option>
                                         <option>Qabul qilingan</option>
                                         <option>Berilmagan</option>
                                         <option>Bajarilmagan</option>
+                                        <option>Kutilmoqda</option>
                                     </select>
                                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-800">
                                         <i className="fa-solid fa-caret-down text-[14px]"></i>

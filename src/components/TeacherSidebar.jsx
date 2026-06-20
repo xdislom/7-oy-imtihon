@@ -5,8 +5,15 @@ import najotLogo from "../assets/logo.jpg";
 export default function TeacherSidebar({ isOpen, onClose }) {
     const location = useLocation();
     const [isGroupsOpen, setIsGroupsOpen] = useState(true);
+    const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem("teacher-sidebar-collapsed") === "true");
 
-    const isGroupsActive = location.pathname.startsWith('/dashboard/groups') || location.pathname.startsWith('/classes/groups');
+    const toggleCollapse = () => {
+        const newValue = !isCollapsed;
+        setIsCollapsed(newValue);
+        localStorage.setItem("teacher-sidebar-collapsed", String(newValue));
+    };
+
+    const isGroupsActive = location.pathname.startsWith('/dashboard/groups') || location.pathname.startsWith('/classes/groups') || location.pathname.startsWith('/dashboard/groups') || location.pathname.includes('/homework/');
 
     return (
         <>
@@ -17,14 +24,21 @@ export default function TeacherSidebar({ isOpen, onClose }) {
                 />
             )}
             <div className={`
-                fixed md:sticky top-0 left-0 z-[101] h-screen bg-white transition-all duration-300 flex flex-col shrink-0 w-[260px] border-r border-gray-100
+                fixed md:sticky top-0 left-0 z-[101] h-screen bg-white transition-all duration-300 flex flex-col shrink-0 border-r border-gray-100
                 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+                ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}
             `}>
+                <button 
+                    onClick={toggleCollapse}
+                    className="hidden md:flex absolute -right-[12px] top-[25px] w-[24px] h-[24px] bg-purple-600 rounded-full items-center justify-center text-white shadow-md z-[105]"
+                >
+                    <i className={`fa-solid fa-chevron-${isCollapsed ? 'right' : 'left'} text-[10px]`}></i>
+                </button>
                 {/* Logo */}
-                <div className="p-5 flex items-center justify-between border-b border-gray-100">
+                <div className={`p-5 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} border-b border-gray-100`}>
                     <div className="flex items-center gap-2">
                         <img src={najotLogo} alt="logo" className="w-[36px] rounded-[8px]" />
-                        <span className="font-bold text-[20px] text-purple-600 tracking-wide">XD_EDU</span>
+                        {!isCollapsed && <span className="font-bold text-[20px] text-purple-600 tracking-wide">XD_EDU</span>}
                     </div>
                     <button onClick={onClose} className="md:hidden text-gray-400 hover:text-gray-600">
                         <i className="fa-solid fa-xmark text-[18px]"></i>
@@ -36,19 +50,24 @@ export default function TeacherSidebar({ isOpen, onClose }) {
                     {/* Guruhlar dropdown */}
                     <div>
                         <button
-                            onClick={() => setIsGroupsOpen(!isGroupsOpen)}
-                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-[12px] transition-all font-medium ${
-                                isGroupsActive ? 'bg-purple-50 text-purple-600' : 'text-gray-600 hover:bg-gray-50'
+                            onClick={() => {
+                                if (isCollapsed) toggleCollapse();
+                                else setIsGroupsOpen(!isGroupsOpen);
+                            }}
+                            className={`w-full flex items-center gap-3 py-3 transition-colors duration-200 font-medium ${
+                                isCollapsed ? 'justify-center px-0 rounded-[10px]' : 'justify-between px-4 rounded-[10px]'
+                            } ${
+                                isGroupsActive ? 'bg-purple-600 text-white' : 'text-gray-800 hover:bg-purple-600 hover:text-white'
                             }`}
                         >
-                            <div className="flex items-center gap-3">
-                                <i className="fa-solid fa-users text-[16px]"></i>
-                                <span className="text-[15px]">Guruhlar</span>
+                            <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+                                <i className="fa-solid fa-users text-[16px] shrink-0"></i>
+                                {!isCollapsed && <span className="text-[15px]">Guruhlar</span>}
                             </div>
-                            <i className={`fa-solid fa-chevron-${isGroupsOpen ? 'up' : 'down'} text-[11px] text-gray-400`}></i>
+                            {!isCollapsed && <i className={`fa-solid fa-chevron-${isGroupsOpen ? 'up' : 'down'} text-[11px] ${isGroupsActive ? 'text-white' : 'text-gray-400'}`}></i>}
                         </button>
 
-                        {isGroupsOpen && (
+                        {isGroupsOpen && !isCollapsed && (
                             <div className="ml-4 mt-1 flex flex-col gap-1 border-l border-gray-100 pl-3">
                                 <NavLink
                                     to="/dashboard/groups"
@@ -56,8 +75,8 @@ export default function TeacherSidebar({ isOpen, onClose }) {
                                     className={({ isActive }) =>
                                         `flex items-center gap-3 px-3 py-2.5 rounded-[10px] transition-all no-underline text-[14px] font-medium ${
                                             isActive
-                                                ? 'bg-purple-50 text-purple-600'
-                                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                                ? 'bg-purple-600 text-white'
+                                                : 'text-gray-800 hover:bg-purple-600 hover:text-white'
                                         }`
                                     }
                                     end
@@ -71,8 +90,8 @@ export default function TeacherSidebar({ isOpen, onClose }) {
                                     className={({ isActive }) =>
                                         `flex items-center gap-3 px-3 py-2.5 rounded-[10px] transition-all no-underline text-[14px] font-medium ${
                                             isActive
-                                                ? 'bg-purple-50 text-purple-600'
-                                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                                ? 'bg-purple-600 text-white'
+                                                : 'text-gray-800 hover:bg-purple-600 hover:text-white'
                                         }`
                                     }
                                 >
@@ -88,15 +107,17 @@ export default function TeacherSidebar({ isOpen, onClose }) {
                         to="/dashboard/profile"
                         onClick={() => onClose && onClose()}
                         className={({ isActive }) =>
-                            `flex items-center gap-3 px-4 py-3 rounded-[12px] transition-all no-underline font-medium ${
+                            `flex items-center gap-3 py-3 transition-colors duration-200 no-underline font-medium ${
+                                isCollapsed ? 'justify-center px-0 rounded-[10px]' : 'px-4 rounded-[10px]'
+                            } ${
                                 isActive
-                                    ? 'bg-purple-50 text-purple-600'
-                                    : 'text-gray-600 hover:bg-gray-50'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'text-gray-800 hover:bg-purple-600 hover:text-white'
                             }`
                         }
                     >
-                        <i className="fa-solid fa-user text-[16px]"></i>
-                        <span className="text-[15px]">Profil</span>
+                        <i className="fa-solid fa-user text-[16px] shrink-0"></i>
+                        {!isCollapsed && <span className="text-[15px]">Profil</span>}
                     </NavLink>
                 </div>
             </div>

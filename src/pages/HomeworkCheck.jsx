@@ -48,17 +48,65 @@ export default function HomeworkCheck() {
 
     useEffect(() => {
         const fetchAnswer = async () => {
+            const lessonId = lessonData?.lesson_id || lessonData?.lesson?.id || (lessonData?.id !== Number(homeworkId) ? lessonData?.id : null) || location.state?.lesson?.id;
+            
             if (!token || !groupId || !homeworkId || !studentId) return
             setFetchingAnswer(true)
             try {
                 const tok = token.replace(/^Bearer\s+/i, '').trim()
-                const res = await fetch(
-                    `${API_URL}/group/${groupId}/homework/${homeworkId}/result/${studentId}`,
-                    { headers: { 'Authorization': `Bearer ${tok}` } }
-                )
+                
+                let res;
+                let activeLessonId = lessonId;
+                
+                // Agar lessonId bo'lmasa, guruhdagi vazifalar ro'yxatidan qidirib topamiz
+                if (!activeLessonId) {
+                    try {
+                        const hwListRes = await fetch(`${API_URL}/homework/${groupId}`, { headers: { 'Authorization': `Bearer ${tok}` } })
+                        if (hwListRes.ok) {
+                            const hwData = await hwListRes.json()
+                            const list = Array.isArray(hwData?.data) ? hwData.data : (Array.isArray(hwData) ? hwData : [])
+                            const currentHw = list.find(h => (h.homework?.id || h.id || h.homeworkId) === Number(homeworkId))
+                            if (currentHw) {
+                                activeLessonId = currentHw.lesson_id || currentHw.lesson?.id || currentHw.id
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error finding lessonId", e)
+                    }
+                }
+
+                if (activeLessonId) {
+                    res = await fetch(
+                        `${API_URL}/group/${groupId}/lesson/${activeLessonId}/homework/${homeworkId}/student/${studentId}`,
+                        { headers: { 'Authorization': `Bearer ${tok}` } }
+                    )
+                }
+                
+                // Agar lessonId bo'lmasa yoki xato bersa, alternativ API ga murojaat qilamiz
+                if (!res || !res.ok) {
+                    res = await fetch(
+                        `${API_URL}/group/${groupId}/homework/${homeworkId}/result/${studentId}`,
+                        { headers: { 'Authorization': `Bearer ${tok}` } }
+                    )
+                }
                 if (res.ok) {
                     const data = await res.json()
-                    setAnswerData(data?.data || data)
+                    const raw = data?.data || data
+
+                    // API /result/:studentId ichidan homework_answer_id ni topamiz yoki o'rnatamiz.
+                    // Ko'p hollarda bu record ning o'z "id"si = homework_answer_id bo'ladi.
+                    const normalizedData = {
+                        ...raw,
+                        homework_answer_id:
+                            raw?.id ||       // ← Yangi API dagi eng to'g'ri ID (masalan 78)
+                            raw?.homework_answer_id ||
+                            raw?.answer_id ||
+                            stateStudent?.homework_answer_id || 
+                            null
+                    }
+                    console.log("📥 fetchAnswer raw data:", raw)
+                    console.log("✅ normalizedData.homework_answer_id:", normalizedData.homework_answer_id)
+                    setAnswerData(normalizedData)
                 }
             } catch (err) {
                 console.error("Error fetching answer:", err)
@@ -74,30 +122,39 @@ export default function HomeworkCheck() {
     const student = answerData || stateStudent
 
     const lesson = lessonData || {}
-    const homeworkTitle = lesson.title || lesson.topic || lesson.name || lesson.subject || lesson.description || "Uyga vazifa"
-    const firstName = student.student?.first_name || student.first_name || ""
-    const lastName = student.student?.last_name || student.last_name || ""
-    const trimmedName = `${firstName} ${lastName}`.trim()
-    const studentName = student.student?.full_name || student.full_name || (trimmedName ? trimmedName : (student.student?.name || student.name || "O'quvchi"))
+    const homeworkTitle = student?.homework?.title || lesson.title || lesson.topic || lesson.name || "Uyga vazifa"
+    
+    // O'quvchi ismi 'students' obyektidan olinadi
+    const studentName = student?.students?.full_name || student?.student?.full_name || student?.full_name || student?.students?.name || "O'quvchi"
 
     // Fayllarni har qanday strukturadan topish
-    let submittedFiles = student.files || student.attachments || stateStudent.files || stateStudent.attachments || []
-    if (!submittedFiles.length) {
-        if (student.answer?.files) submittedFiles = student.answer.files
-        else if (student.answer?.attachments) submittedFiles = student.answer.attachments
-        else if (student.homework_answer?.files) submittedFiles = student.homework_answer.files
-        else if (student.file) submittedFiles = [student.file] // Bitta fayl bo'lsa
-        else if (student.attachment) submittedFiles = [student.attachment]
-        else if (student.answer?.file) submittedFiles = [student.answer.file]
-        else if (student.answer?.attachment) submittedFiles = [student.answer.attachment]
-    }
+    let submittedFiles = []
     
-    // String bo'lib kelsa (masalan bitta URL), array ga aylantiramiz
+    // Asosiy ma'lumotdan qidiramiz
+    if (student.files && student.files.length > 0) submittedFiles = student.files
+    else if (student.file) submittedFiles = [student.file]
+    else if (student.answer?.file) submittedFiles = [student.answer.file]
+    else if (student.answer?.files && student.answer.files.length > 0) submittedFiles = student.answer.files
+    else if (student.homework_answer?.file) submittedFiles = [student.homework_answer.file]
+    else if (student.homework_answer?.files && student.homework_answer.files.length > 0) submittedFiles = student.homework_answer.files
+    // Fallback: ro'yxatdan kelgan state
+    else if (stateStudent.files && stateStudent.files.length > 0) submittedFiles = stateStudent.files
+    else if (stateStudent.file) submittedFiles = [stateStudent.file]
+    else if (stateStudent.attachments && stateStudent.attachments.length > 0) submittedFiles = stateStudent.attachments
+
+    // Agar url string bo'lmasa, uni array ga aylantiramiz (eski kod qoldig'ini tozalab)
     if (typeof submittedFiles === 'string') {
         submittedFiles = [submittedFiles]
     }
+    
+    // Keraksiz va noto'g'ri fayllarni tozalaymiz (null yoki url/path/file si yo'q obyektlarni olib tashlaymiz)
+    submittedFiles = submittedFiles.filter(f => {
+        if (!f) return false;
+        if (typeof f === 'string') return true;
+        return !!(f.url || f.path || f.link || f.file);
+    });
 
-    const studentComment = student.comment || student.description || student.link || stateStudent.comment || stateStudent.description || student.answer?.comment || student.answer?.description || ""
+    const studentComment = student.title || student.comment || student.description || student.link || stateStudent.title || stateStudent.comment || stateStudent.description || student.answer?.title || student.answer?.comment || student.answer?.description || ""
     const submittedAt = student.created_at || student.submitted_at || student.submittedAt || student.createdAt || student.answer?.created_at || student.homework_answer?.created_at || stateStudent.created_at || stateStudent.createdAt || stateStudent.submitted_at || stateStudent.submittedAt || null
     const fileCount = submittedFiles?.length || student.files_count || stateStudent.files_count || 0
     console.log("👀 Student obyekti:", student)
@@ -149,17 +206,34 @@ export default function HomeworkCheck() {
         try {
             const tok = token.replace(/^Bearer\s+/i, '').trim()
 
-            const answerId = student.homework_answer_id || student.answer_id || (student.student ? student.id || student._id : student.id || student._id);
-            
+            // homework_answer_id ni to'g'ri topamiz
+            // answerData mavjud bo'lsa, uning 'id' si submission ID hisoblanadi (masalan 78).
+            const answerId = 
+                answerData?.id ||
+                student.homework_answer_id ||
+                student.answer_id ||
+                student.answer?.id ||
+                student.homework_answer?.id ||
+                student.homeworkAnswerId ||
+                student.id ||
+                null;
+
+            console.log("📦 To'liq O'quvchi (Student) obyekti:", student)
+            console.log("🔑 Topilgan answerId:", answerId)
+
+            if (!answerId) {
+                showToast('error', "Uyga vazifa javobi ID topilmadi. Iltimos sahifani yangilang.")
+                setLoading(false)
+                return
+            }
+
             const payload = {
                 grade: Number(score),
                 title: comment || "Baholandi",
-                homework_answer_id: Number(answerId),
-                status: status
+                homework_answer_id: Number(answerId)
             }
 
             console.log("🚀 Yuborilayotgan ma'lumot (Payload):", payload)
-            console.log("📦 To'liq O'quvchi (Student) obyekti:", student)
 
             const res = await fetch(`${API_URL}/group/${groupId}/homework/${homeworkId}/check`, {
                 method: 'POST',
@@ -177,11 +251,18 @@ export default function HomeworkCheck() {
                 }
             } else {
                 const data = await res.json().catch(() => ({}))
-                showToast('error', data.message || "Baholashda xatolik yuz berdi")
+                const errorMsg = (data.message || "500 Server xatosi") + `\n\nYuborilgan ma'lumot:\n${JSON.stringify(payload, null, 2)}`
+                showToast('error', "Baholashda xatolik yuz berdi")
+                alert("Xatolik!\n" + errorMsg)
             }
         } catch (err) {
             console.error(err)
             showToast('error', "Server bilan bog'lanishda xatolik")
+            alert("Server bilan bog'lanishda xatolik!\nPayload: " + JSON.stringify({
+                grade: Number(score),
+                title: comment || "Baholandi",
+                homework_answer_id: Number(answerId) // eslint-disable-next-line
+            }))
         } finally {
             setLoading(false)
         }
@@ -194,16 +275,21 @@ export default function HomeworkCheck() {
         UNSUBMITTED: "Bajarilmagan"
     }
 
-    const statusBadge = {
-        PENDING: { label: "Kutayabti", cls: "bg-yellow-50 text-yellow-600 border-yellow-200" },
-        ACCEPTED: { label: "Qabul qilindi", cls: "bg-green-50 text-green-600 border-green-200" },
-        REJECTED: { label: "Qaytarildi", cls: "bg-red-50 text-red-600 border-red-200" },
-        UNSUBMITTED: { label: "Bajarilmagan", cls: "bg-gray-50 text-gray-500 border-gray-200" },
-    }
-    const badge = statusBadge[activeTab] || statusBadge.PENDING
+    // Status ni API dan olamiz
+    const apiStatus = student?.status || activeTab;
+    const badgeLabel = apiStatus === "PENDING" ? "Kutayabti" : 
+                       apiStatus === "ACCEPTED" ? "Qabul qilindi" : 
+                       apiStatus === "REJECTED" ? "Qaytarildi" : 
+                       apiStatus; // Agar 'Bajarilmagan' yoki boshqa string kelsa to'g'ridan to'g'ri chiqaramiz
+                       
+    const badgeCls = apiStatus === "PENDING" ? "bg-blue-50 text-blue-600 border-blue-200" :
+                     apiStatus === "ACCEPTED" ? "bg-green-50 text-green-600 border-green-200" :
+                     apiStatus === "REJECTED" ? "bg-red-50 text-red-600 border-red-200" :
+                     apiStatus === "Bajarilmagan" ? "bg-yellow-50 text-yellow-600 border-yellow-200" :
+                     "bg-gray-50 text-gray-500 border-gray-200";
 
     const roleStr = String(localStorage.getItem("role") || "").toLowerCase()
-    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi")
+    const isTeacher = roleStr.includes("teacher") || roleStr.includes("mentor") || roleStr.includes("o'qituvchi") || location.pathname.startsWith("/dashboard/groups")
 
     return (
         <div className="w-full bg-[#f3f4f6] min-h-screen">
@@ -236,9 +322,23 @@ export default function HomeworkCheck() {
 
                                 {/* Uy vazifasi card */}
                                 <div className="bg-white rounded-[16px] border border-gray-200 p-[24px]">
-                                    <h2 className="text-[18px] font-[700] text-gray-900 mb-[16px]">Uy vazifasi</h2>
-                                    <p className="text-[13px] text-gray-400 font-[500] mb-[4px]">Izoh:</p>
-                                    <p className="text-[15px] text-gray-700 font-[500]">{homeworkTitle}</p>
+                                    <p className="text-[13px] text-gray-400 font-[500] mb-[4px]">Mavzu:</p>
+                                    <p className="text-[15px] text-gray-900 font-[700] mb-[20px]">{homeworkTitle}</p>
+                                    
+                                    {(lessonData?.file || student?.homework?.file || student?.answer?.homework?.file) && (() => {
+                                        let hFile = lessonData?.file || student?.homework?.file || student?.answer?.homework?.file;
+                                        if (hFile && !hFile.startsWith('http')) {
+                                            hFile = hFile.startsWith('/') ? `https://najot-edu.softwareengineer.uz${hFile}` : `https://najot-edu.softwareengineer.uz/uploads/${hFile}`;
+                                        }
+                                        return (
+                                            <div>
+                                                <p className="text-[13px] text-gray-400 font-[500] mb-[8px]">Vazifa fayli:</p>
+                                                <a href={hFile} target="_blank" rel="noreferrer" className="block max-w-[200px] rounded-[10px] overflow-hidden border border-gray-200">
+                                                    <img src={hFile} alt="Homework" className="w-full h-auto object-contain" />
+                                                </a>
+                                            </div>
+                                        )
+                                    })()}
                                 </div>
 
                                 {/* Student card */}
@@ -248,7 +348,7 @@ export default function HomeworkCheck() {
                                         <h3 className="text-[20px] font-[800] text-gray-900">{studentName}</h3>
                                     </div>
 
-                                    {/* Info row */}
+                                    {/* Asosiy Qism */}
                                     <div className="px-[24px] py-[16px] border-b border-gray-100 bg-gray-50/50">
                                         <div className="flex flex-wrap gap-[32px]">
                                             <div>
@@ -261,8 +361,8 @@ export default function HomeworkCheck() {
                                             </div>
                                             <div>
                                                 <p className="text-[12px] text-gray-400 font-[500] mb-[4px]">Status:</p>
-                                                <span className={`text-[12px] font-[600] px-[12px] py-[4px] rounded-full border ${badge.cls}`}>
-                                                    {badge.label}
+                                                <span className={`text-[12px] font-[600] px-[12px] py-[4px] rounded-full border ${badgeCls}`}>
+                                                    {badgeLabel}
                                                 </span>
                                             </div>
                                         </div>
@@ -271,52 +371,42 @@ export default function HomeworkCheck() {
                                     {/* Files preview */}
                                     {submittedFiles.length > 0 && (
                                         <div className="px-[24px] py-[16px] border-b border-gray-100">
-                                            <p className="text-[13px] text-gray-500 font-[500] mb-[12px]">
-                                                Fayl: <strong className="text-gray-700">{submittedFiles.length}</strong>
-                                            </p>
-                                            <div className="flex flex-wrap gap-[10px]">
-                                                {submittedFiles.map((file, i) => {
-                                                    let url = file?.url || file?.path || file?.link || file?.file || (typeof file === 'string' ? file : null)
-                                                    
-                                                    // Agar url string bo'lmasa, uni stringga o'girmaymiz, shunchaki o'tkazib yuboramiz
-                                                    if (typeof url !== 'string') return null;
-                                                    
-                                                    // Agar API nisbiy link (path) qaytargan bo'lsa, domen qo'shish
-                                                    if (url.startsWith('/')) {
-                                                        url = `https://najot-edu.softwareengineer.uz${url}`
-                                                    }
-                                                    
-                                                    const isImage = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(url) || 
-                                                        url.includes('image') || 
-                                                        url.includes('picture') ||
-                                                        url.includes('photo') ||
-                                                        url.includes('media/')
-                                                    
-                                                    return (
-                                                        <a key={i} href={url} target="_blank" rel="noreferrer"
-                                                            className="block w-[90px] h-[90px] rounded-[10px] overflow-hidden border border-gray-200 bg-gray-50 hover:opacity-80 transition-opacity relative group"
+                                            {submittedFiles.map((file, i) => {
+                                                let url = file?.url || file?.path || file?.link || file?.file || (typeof file === 'string' ? file : null)
+                                                if (typeof url !== 'string') return null;
+                                                
+                                                if (url.startsWith('/')) {
+                                                    url = `https://najot-edu.softwareengineer.uz${url}`
+                                                } else if (!url.startsWith('http')) {
+                                                    url = `https://najot-edu.softwareengineer.uz/uploads/${url}`
+                                                }
+                                                
+                                                const isImage = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(url) || 
+                                                    url.includes('image') || url.includes('picture') || url.includes('photo') || url.includes('media/')
+                                                
+                                                return (
+                                                    <div key={i} className="mb-[16px] last:mb-0">
+                                                        <p className="text-[13px] text-gray-400 font-[500] mb-[8px]">
+                                                            Fayl: <strong className="text-gray-700">{i + 1}</strong>
+                                                        </p>
+                                                        <a href={url} target="_blank" rel="noreferrer"
+                                                            className="block max-w-[200px] rounded-[10px] overflow-hidden border border-gray-200 bg-gray-50 hover:opacity-90 transition-opacity"
                                                         >
                                                             {isImage ? (
                                                                 <img 
                                                                     src={url} 
                                                                     alt={`file-${i}`} 
-                                                                    className="w-full h-full object-cover" 
-                                                                    onError={(e) => {
-                                                                        e.target.style.display = 'none';
-                                                                        e.target.nextSibling.style.display = 'flex';
-                                                                    }}
+                                                                    className="w-full h-auto object-cover" 
                                                                 />
-                                                            ) : null}
-                                                            
-                                                            <div 
-                                                                className={`w-full h-full items-center justify-center text-gray-400 bg-gray-50 ${isImage ? 'hidden' : 'flex'}`}
-                                                            >
-                                                                <i className="fa-regular fa-file text-[28px]"></i>
-                                                            </div>
+                                                            ) : (
+                                                                <div className="w-[100px] h-[100px] flex items-center justify-center text-gray-400">
+                                                                    <i className="fa-regular fa-file text-[32px]"></i>
+                                                                </div>
+                                                            )}
                                                         </a>
-                                                    )
-                                                })}
-                                            </div>
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     )}
 
