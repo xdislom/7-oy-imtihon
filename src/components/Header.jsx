@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IconButton, Tooltip, Switch } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import najot from "../assets/logo.jpg";
+import najot from "../assets/logo (16).png";
 
 const MaterialUISwitch = styled(Switch)(({ theme }) => ({
     width: 62,
@@ -134,9 +134,10 @@ export default function Header({ onMenuClick }) {
                 </div>
 
                 {/* Mobile visible elements */}
-                <div className="md:hidden flex items-center gap-2">
-                    <img src={najot} alt="najot" className="w-[35px]" />
-                    <span className="text-[18px] text-purple-500 font-[600]">NajotEdu</span>
+                <div className="md:hidden flex items-center gap-[6px]">
+                    <span className="text-[18px] text-[#2c323f] font-[600]">NAJOT</span>
+                    <img src={najot} alt="najot" className="w-[35px] object-contain" />
+                    <span className="text-[18px] text-[#2c323f] font-[600]">TA'LIM</span>
                 </div>
             </div>
 

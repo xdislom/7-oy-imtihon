@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import najotLogo from "../assets/logo.jpg";
+import najotLogo from "../assets/logo (16).png";
 
 export default function TeacherSidebar({ isOpen, onClose }) {
     const location = useLocation();
@@ -36,9 +36,10 @@ export default function TeacherSidebar({ isOpen, onClose }) {
                 </button>
                 {/* Logo */}
                 <div className={`p-5 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} border-b border-gray-100`}>
-                    <div className="flex items-center gap-2">
-                        <img src={najotLogo} alt="logo" className="w-[36px] rounded-[8px]" />
-                        {!isCollapsed && <span className="font-bold text-[20px] text-purple-600 tracking-wide">XD_EDU</span>}
+                    <div className="flex items-center gap-[6px] relative">
+                        {!isCollapsed && <span className="font-bold text-[20px] text-[#2c323f] tracking-wider">NAJOT</span>}
+                        <img src={najotLogo} alt="logo" className={`${isCollapsed ? 'w-[40px]' : 'w-[45px]'} transition-all duration-300 object-contain`} />
+                        {!isCollapsed && <span className="font-bold text-[20px] text-[#2c323f] tracking-wider">TA'LIM</span>}
                     </div>
                     <button onClick={onClose} className="md:hidden text-gray-400 hover:text-gray-600">
                         <i className="fa-solid fa-xmark text-[18px]"></i>

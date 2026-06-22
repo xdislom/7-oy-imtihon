@@ -173,7 +173,7 @@ export default function StudentLessonDetail() {
             <div className="flex min-h-screen">
                 <StudentSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-                <div className="flex-1 flex flex-col min-h-screen transition-all duration-300">
+                <div className="flex-1 flex flex-col h-screen overflow-y-auto custom-scrollbar transition-all duration-300">
                     <StudentHeader
                         onMenuClick={() => setIsSidebarOpen(true)}
                         isSidebarOpen={isSidebarOpen}
@@ -181,7 +181,7 @@ export default function StudentLessonDetail() {
                     />
 
                     <main className="flex-1 px-4 py-5 md:px-6 md:py-6">
-                        <div className="max-w-[1300px] mx-auto flex flex-col xl:flex-row gap-6">
+                        <div className="max-w-[1300px] mx-auto flex flex-col xl:flex-row gap-6 items-start">
                             {/* LEFT COLUMN */}
                             <section className="flex-1 flex flex-col gap-4">
                                 <div className="bg-white rounded-[14px] border border-[#ece9e2] shadow-sm overflow-hidden">
@@ -387,14 +387,14 @@ export default function StudentLessonDetail() {
                             </section>
 
                              {/* RIGHT COLUMN */}
-                             <aside className="w-full xl:w-[360px] xl:flex-shrink-0">
-                                 <div className="bg-white rounded-[14px] border border-[#ece9e2] shadow-sm p-4 h-full flex flex-col">
-                                     <div className="flex items-center justify-between pb-3 mb-2">
+                             <aside className="w-full xl:w-[360px] xl:flex-shrink-0 xl:sticky xl:top-[90px] xl:h-[calc(100vh-110px)] flex flex-col">
+                                 <div className="bg-white rounded-[14px] border border-[#ece9e2] shadow-sm p-4 h-full flex flex-col overflow-hidden">
+                                     <div className="flex items-center justify-between pb-3 mb-2 flex-shrink-0">
                                          <h3 className="text-[15px] font-semibold text-[#1f2937]">Darslar ro'yxati</h3>
                                          <span className="text-[12px] text-gray-500">{allLessons.length}</span>
                                      </div>
 
-                                     <div className="flex flex-col gap-[14px] max-h-[760px] overflow-y-auto pr-[6px] custom-scrollbar">
+                                     <div className="flex flex-col gap-[14px] overflow-y-auto pr-[6px] custom-scrollbar flex-1 min-h-0">
                                          {allLessons.map((l, i) => {
                                              const isActive = String(l.id) === String(lessonId);
                                              const lessonVideos = Array.isArray(l.videos) ? l.videos : [];
@@ -415,20 +415,20 @@ export default function StudentLessonDetail() {
                                                  >
                                                      <div
                                                          className={`px-4 py-3.5 cursor-pointer flex items-center justify-between gap-3 transition-colors rounded-[10px] ${
-                                                             isActive ? 'bg-[#eebd8f]' : 'bg-transparent hover:bg-black/5'
+                                                             isActive ? 'bg-purple-600' : 'bg-transparent hover:bg-black/5'
                                                          }`}
                                                          onClick={() => !isActive && navigate(`/dashboard/my-groups/${groupId}/lessons/${l.id}`)}
                                                      >
                                                          <div>
-                                                             <h4 className="text-[15px] font-[700] text-black leading-snug">
+                                                             <h4 className={`text-[15px] font-[700] leading-snug ${isActive ? 'text-white' : 'text-black'}`}>
                                                                  {lessonTitle}
                                                              </h4>
-                                                             <p className={`text-[13px] mt-[4px] ${isActive ? 'text-gray-800' : 'text-gray-600'}`}>
+                                                             <p className={`text-[13px] mt-[4px] ${isActive ? 'text-purple-100' : 'text-gray-600'}`}>
                                                                  Dars sanasi: {dateDisplay}
                                                              </p>
                                                          </div>
                                                          {hasChevron && (
-                                                             <i className={`fa-solid fa-chevron-down text-[13px] ${isActive ? 'rotate-180 text-gray-800' : 'text-gray-500'} transition-transform duration-200`}></i>
+                                                             <i className={`fa-solid fa-chevron-down text-[13px] ${isActive ? 'rotate-180 text-white' : 'text-gray-500'} transition-transform duration-200`}></i>
                                                          )}
                                                      </div>
 
@@ -441,8 +441,8 @@ export default function StudentLessonDetail() {
                                                                      onClick={(e) => { e.stopPropagation(); setActiveVideoIndex(idx); }}
                                                                      className={`flex items-center gap-[10px] px-4 py-3 rounded-[10px] text-left transition-colors ${
                                                                          activeVideoIndex === idx
-                                                                             ? 'bg-[#eebd8f] text-black'
-                                                                             : 'bg-[#ecc097] text-gray-900 hover:bg-[#eebd8f]'
+                                                                             ? 'bg-purple-600 text-white'
+                                                                             : 'bg-purple-100 text-purple-900 hover:bg-purple-200'
                                                                      }`}
                                                                  >
                                                                      <i className="fa-regular fa-circle-play text-[18px] flex-shrink-0"></i>
@@ -465,10 +465,11 @@ export default function StudentLessonDetail() {
             </div>
 
             <style dangerouslySetInnerHTML={{__html: `
-                .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-                .custom-scrollbar::-webkit-scrollbar-track { background: #ece9e2; border-radius: 999px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1a373; border-radius: 999px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #b88a5c; }
+                .custom-scrollbar::-webkit-scrollbar { width: 6px !important; display: block !important; }
+                .custom-scrollbar::-webkit-scrollbar-track { background-color: transparent !important; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #9333ea !important; border-radius: 6px !important; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #7e22ce !important; }
+                .custom-scrollbar { scrollbar-width: thin !important; scrollbar-color: #9333ea transparent !important; }
             `}} />
         </div>
     );

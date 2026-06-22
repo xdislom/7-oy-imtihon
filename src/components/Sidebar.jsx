@@ -9,7 +9,7 @@ import {
     TuneOutlined
 } from '@mui/icons-material'
 import { useState } from "react"
-import najot from "../assets/logo.jpg"
+import najot from "../assets/logo (16).png"
 
 const navItems = [
     { to: "/dashboard", Icon: HomeOutlined, label: "Asosiy" },
@@ -79,9 +79,10 @@ export default function Sidebar({ isOpen, onClose }) {
                 <div className={`h-full p-[20px] flex flex-col justify-between border-r border-gray-100 bg-white z-[102] w-full overflow-hidden`}>
                     <ul className="list-none p-0 m-0">
                         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-                            <div className="flex items-center">
-                                <img src={najot} alt="najot" className="w-[40px]" />
-                                {!isCollapsed && <li className="text-[24px] text-purple-500 font-[500] pt-[7px] ml-2">XD_EDU</li>}
+                            <div className="flex items-center gap-[6px]">
+                                {!isCollapsed && <span className="text-[22px] font-[600] text-[#2c323f] tracking-wide">NAJOT</span>}
+                                <img src={najot} alt="najot" className={`${isCollapsed ? 'w-[40px]' : 'w-[45px]'} transition-all duration-300 object-contain`} />
+                                {!isCollapsed && <span className="text-[22px] font-[600] text-[#2c323f] tracking-wide">TA'LIM</span>}
                             </div>
                             {!isCollapsed && (
                                 <IconButton onClick={onClose} className="md:!hidden">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import najotLogo from "../assets/logo.jpg";
+import najotLogo from "../assets/logo (16).png";
 
 export default function StudentSidebar({ isOpen, onClose }) {
     const location = useLocation();
@@ -11,7 +11,7 @@ export default function StudentSidebar({ isOpen, onClose }) {
         setIsCollapsed(newValue);
         localStorage.setItem("student-sidebar-collapsed", String(newValue));
     };
-    
+
     const navItems = [
         { to: "/student/home", icon: "fa-solid fa-house", label: "Bosh sahifa" },
         { to: "/student/payments", icon: "fa-regular fa-credit-card", label: "To'lovlarim" },
@@ -26,7 +26,7 @@ export default function StudentSidebar({ isOpen, onClose }) {
     return (
         <>
             {isOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/40 z-[100] md:hidden transition-opacity duration-300"
                     onClick={onClose}
                 />
@@ -36,21 +36,21 @@ export default function StudentSidebar({ isOpen, onClose }) {
                 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}
             `}>
-                <button 
+                <button
                     onClick={toggleCollapse}
                     className="hidden md:flex absolute -right-[12px] top-[25px] w-[24px] h-[24px] bg-purple-600 rounded-full items-center justify-center text-white shadow-md z-[105]"
                 >
                     <i className={`fa-solid fa-chevron-${isCollapsed ? 'right' : 'left'} text-[10px]`}></i>
                 </button>
                 <div className={`p-5 flex items-center ${isCollapsed ? 'justify-center' : 'justify-center md:justify-start'}`}>
-                    <div className="flex items-center gap-2 relative">
-                        <span className="font-bold text-[18px] text-gray-800 tracking-wider">XD</span>
-                        <img src={najotLogo} alt="logo" className="w-[30px]" />
-                        {!isCollapsed && <span className="font-bold text-[18px] text-gray-800 tracking-wider">EDU</span>}
-                        {!isCollapsed && <span className="absolute -top-2 -right-8 bg-yellow-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-[6px]">Beta</span>}
+                    <div className="flex items-center gap-[6px] relative">
+                        {!isCollapsed && <span className="font-bold text-[18px] text-[#2c323f] tracking-wider">NAJOT</span>}
+                        <img src={najotLogo} alt="logo" className={`${isCollapsed ? 'w-[40px]' : 'w-[45px]'} transition-all duration-300 object-contain`} />
+                        {!isCollapsed && <span className="font-bold text-[18px] text-[#2c323f] tracking-wider">TA'LIM</span>}
+                        {!isCollapsed && <span className="absolute -top-1.5 -right-9 bg-[#eab308] text-black text-[11px] font-[500] px-2 py-0.5 rounded-[12px]">Beta</span>}
                     </div>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-1">
                     {navItems.map((item) => {
                         const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
@@ -59,13 +59,11 @@ export default function StudentSidebar({ isOpen, onClose }) {
                                 key={item.to}
                                 to={item.to}
                                 onClick={() => onClose && onClose()}
-                                className={`flex items-center gap-4 py-3.5 transition-colors duration-200 no-underline ${
-                                    isCollapsed ? 'justify-center px-0 rounded-[10px]' : 'px-4 rounded-[10px]'
-                                } ${
-                                    isActive 
-                                        ? "bg-purple-600 text-white font-medium" 
+                                className={`flex items-center gap-4 py-3.5 transition-colors duration-200 no-underline ${isCollapsed ? 'justify-center px-0 rounded-[10px]' : 'px-4 rounded-[10px]'
+                                    } ${isActive
+                                        ? "bg-purple-600 text-white font-medium"
                                         : "text-gray-800 hover:bg-purple-600 hover:text-white font-medium"
-                                }`}
+                                    }`}
                                 style={{}}
                             >
                                 <div className="w-[24px] flex justify-center shrink-0">
