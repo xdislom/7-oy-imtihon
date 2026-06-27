@@ -386,79 +386,79 @@ export default function StudentLessonDetail() {
                                 </div>
                             </section>
 
-                             {/* RIGHT COLUMN */}
-                             <aside className="w-full xl:w-[360px] xl:flex-shrink-0 xl:sticky xl:top-[90px] xl:h-[calc(100vh-110px)] flex flex-col">
-                                 <div className="bg-white rounded-[14px] border border-[#ece9e2] shadow-sm p-4 h-full flex flex-col overflow-hidden">
-                                     <div className="flex items-center justify-between pb-3 mb-2 flex-shrink-0">
-                                         <h3 className="text-[15px] font-semibold text-[#1f2937]">Darslar ro'yxati</h3>
-                                         <span className="text-[12px] text-gray-500">{allLessons.length}</span>
-                                     </div>
+                            {/* RIGHT COLUMN */}
+                            <aside className="w-full xl:w-[360px] xl:flex-shrink-0 xl:sticky xl:top-[90px] xl:h-[calc(100vh-110px)] flex flex-col">
+                                <div className="bg-white rounded-[14px] border border-[#ece9e2] shadow-sm p-4 h-full flex flex-col overflow-hidden">
+                                    <div className="flex items-center justify-between pb-3 mb-2 flex-shrink-0">
+                                        <h3 className="text-[15px] font-semibold text-[#1f2937]">Darslar ro'yxati</h3>
+                                        <span className="text-[12px] text-gray-500">{allLessons.length}</span>
+                                    </div>
 
-                                     <div className="flex flex-col gap-[14px] overflow-y-auto pr-[6px] custom-scrollbar flex-1 min-h-0">
-                                         {allLessons.map((l, i) => {
-                                             const isActive = String(l.id) === String(lessonId);
-                                             const lessonVideos = Array.isArray(l.videos) ? l.videos : [];
-                                             const activeVideos = isActive ? (videos?.length > 0 ? videos : lessonVideos) : [];
-                                             const vCount = l.videoCount !== undefined ? l.videoCount : (lessonVideos.length || l.video_count || 0);
-                                             const hasChevron = vCount > 0 || isActive;
+                                    <div className="flex flex-col gap-[14px] overflow-y-auto pr-[6px] custom-scrollbar flex-1 min-h-0">
+                                        {allLessons.map((l, i) => {
+                                            const isActive = String(l.id) === String(lessonId);
+                                            const lessonVideos = Array.isArray(l.videos) ? l.videos : [];
+                                            const activeVideos = isActive ? (videos?.length > 0 ? videos : lessonVideos) : [];
+                                            const vCount = l.videoCount !== undefined ? l.videoCount : (lessonVideos.length || l.video_count || 0);
+                                            const hasChevron = vCount > 0 || isActive;
 
-                                             const dateVal = l.date || l.created_at;
-                                             const dateDisplay = dateVal ? formatDate(dateVal) : '-';
-                                             const lessonTitle = l.title || l.topic || l.name || l.lesson_name || l.subject || l.description || `Dars ${i + 1}`;
+                                            const dateVal = l.date || l.created_at;
+                                            const dateDisplay = dateVal ? formatDate(dateVal) : '-';
+                                            const lessonTitle = l.title || l.topic || l.name || l.lesson_name || l.subject || l.description || `Dars ${i + 1}`;
 
-                                             return (
-                                                 <div
-                                                     key={l.id || i}
-                                                     className={`rounded-[12px] transition-colors ${
-                                                         isActive ? 'bg-[#fdfbf7] p-[10px] flex flex-col gap-2' : 'bg-[#f8f5f0] p-[10px]'
-                                                     }`}
-                                                 >
-                                                     <div
-                                                         className={`px-4 py-3.5 cursor-pointer flex items-center justify-between gap-3 transition-colors rounded-[10px] ${
-                                                             isActive ? 'bg-purple-600' : 'bg-transparent hover:bg-black/5'
-                                                         }`}
-                                                         onClick={() => !isActive && navigate(`/dashboard/my-groups/${groupId}/lessons/${l.id}`)}
-                                                     >
-                                                         <div>
-                                                             <h4 className={`text-[15px] font-[700] leading-snug ${isActive ? 'text-white' : 'text-black'}`}>
-                                                                 {lessonTitle}
-                                                             </h4>
-                                                             <p className={`text-[13px] mt-[4px] ${isActive ? 'text-purple-100' : 'text-gray-600'}`}>
-                                                                 Dars sanasi: {dateDisplay}
-                                                             </p>
-                                                         </div>
-                                                         {hasChevron && (
-                                                             <i className={`fa-solid fa-chevron-down text-[13px] ${isActive ? 'rotate-180 text-white' : 'text-gray-500'} transition-transform duration-200`}></i>
-                                                         )}
-                                                     </div>
+                                            return (
+                                                <div
+                                                    key={l.id || i}
+                                                    className={`rounded-[12px] transition-colors ${
+                                                        isActive ? 'bg-[#f4eade] p-[10px] flex flex-col gap-2' : 'bg-[#f8f5f0] p-[10px]'
+                                                    }`}
+                                                >
+                                                    <div
+                                                        className={`px-4 py-3.5 cursor-pointer flex items-center justify-between gap-3 transition-colors rounded-[10px] ${
+                                                            isActive ? 'bg-[#eebd8f]' : 'bg-transparent hover:bg-black/5'
+                                                        }`}
+                                                        onClick={() => !isActive && navigate(`/dashboard/my-groups/${groupId}/lessons/${l.id}`)}
+                                                    >
+                                                        <div>
+                                                            <h4 className={`text-[15px] font-[700] leading-snug ${isActive ? 'text-black' : 'text-gray-900'}`}>
+                                                                {lessonTitle}
+                                                            </h4>
+                                                            <p className={`text-[13px] mt-[4px] ${isActive ? 'text-gray-800' : 'text-gray-600'}`}>
+                                                                Dars sanasi: {dateDisplay}
+                                                            </p>
+                                                        </div>
+                                                        {hasChevron && (
+                                                            <i className={`fa-solid fa-chevron-down text-[13px] ${isActive ? 'rotate-180 text-black' : 'text-gray-500'} transition-transform duration-200`}></i>
+                                                        )}
+                                                    </div>
 
-                                                     {isActive && activeVideos.length > 0 && (
-                                                         <div className="flex flex-col gap-2">
-                                                             {activeVideos.map((vid, idx) => (
-                                                                 <button
-                                                                     key={vid.id || idx}
-                                                                     type="button"
-                                                                     onClick={(e) => { e.stopPropagation(); setActiveVideoIndex(idx); }}
-                                                                     className={`flex items-center gap-[10px] px-4 py-3 rounded-[10px] text-left transition-colors ${
-                                                                         activeVideoIndex === idx
-                                                                             ? 'bg-purple-600 text-white'
-                                                                             : 'bg-purple-100 text-purple-900 hover:bg-purple-200'
-                                                                     }`}
-                                                                 >
-                                                                     <i className="fa-regular fa-circle-play text-[18px] flex-shrink-0"></i>
-                                                                     <span className="text-[14px] font-[500] truncate">
-                                                                         {idx + 1}-video: {vid.originalname || vid.video_url || `Qism ${idx + 1}`}
-                                                                     </span>
-                                                                 </button>
-                                                             ))}
-                                                         </div>
-                                                     )}
-                                                 </div>
-                                             );
-                                         })}
-                                     </div>
-                                 </div>
-                             </aside>
+                                                    {isActive && activeVideos.length > 0 && (
+                                                        <div className="flex flex-col gap-2">
+                                                            {activeVideos.map((vid, idx) => (
+                                                                <button
+                                                                    key={vid.id || idx}
+                                                                    type="button"
+                                                                    onClick={(e) => { e.stopPropagation(); setActiveVideoIndex(idx); }}
+                                                                    className={`flex items-center gap-[10px] px-4 py-3 rounded-[10px] text-left transition-colors ${
+                                                                        activeVideoIndex === idx
+                                                                            ? 'bg-[#e4b383] text-black'
+                                                                            : 'bg-[#ecc097] text-gray-900 hover:bg-[#e4b383]'
+                                                                    }`}
+                                                                >
+                                                                    <i className="fa-regular fa-circle-play text-[18px] flex-shrink-0"></i>
+                                                                    <span className="text-[14px] font-[500] truncate">
+                                                                        {idx + 1}-video: {vid.originalname || vid.video_url || `Qism ${idx + 1}`}
+                                                                    </span>
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </aside>
                         </div>
                     </main>
                 </div>
@@ -467,9 +467,9 @@ export default function StudentLessonDetail() {
             <style dangerouslySetInnerHTML={{__html: `
                 .custom-scrollbar::-webkit-scrollbar { width: 6px !important; display: block !important; }
                 .custom-scrollbar::-webkit-scrollbar-track { background-color: transparent !important; }
-                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #9333ea !important; border-radius: 6px !important; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #7e22ce !important; }
-                .custom-scrollbar { scrollbar-width: thin !important; scrollbar-color: #9333ea transparent !important; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #d1a373 !important; border-radius: 6px !important; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #b88a5c !important; }
+                .custom-scrollbar { scrollbar-width: thin !important; scrollbar-color: #d1a373 transparent !important; }
             `}} />
         </div>
     );
